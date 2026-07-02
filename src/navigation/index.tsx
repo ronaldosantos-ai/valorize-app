@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, View } from 'react-native';
 import { COLORS } from '../constants';
+import { supabase } from '../lib/supabase';
+import { useAppStore } from '../store';
 
-// Screens (placeholders — serão implementadas individualmente)
 import HomeScreen from '../screens/home/HomeScreen';
 import CalculatorScreen from '../screens/calculator/CalculatorScreen';
 import RegisterScreen from '../screens/register/RegisterScreen';
@@ -66,16 +68,60 @@ function MainTabs() {
 }
 
 export default function Navigation() {
-  // TODO: checar sessão Supabase para decidir rota inicial
-  const isAuthenticated = false;
-  const hasCompletedOnboarding = false;
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasOnboarding, setHasOnboarding] = useState(false);
+  const { costConfig } = useAppStore();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        setIsAuthenticated(true);
+        const { data } = await supabase
+          .from('profiles')
+          .select('has_completed_onboarding')
+          .eq('id', session.user.id)
+          .single();
+        setHasOnboarding(data?.has_completed_onboarding || false);
+      }
+      setLoading(false);
+    });
+
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setIsAuthenticated(true);
+        const { data } = await supabase
+          .from('profiles')
+          .select('has_completed_onboarding')
+          .eq('id', session.user.id)
+          .single();
+        setHasOnboarding(data?.has_completed_onboarding || false);
+      } else {
+        setIsAuthenticated(false);
+        setHasOnboarding(false);
+      }
+    });
+  }, []);
+
+  // Quando costConfig é salvo, onboarding está completo
+  useEffect(() => {
+    if (costConfig) setHasOnboarding(true);
+  }, [costConfig]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary }}>
+        <ActivityIndicator color={COLORS.white} size="large" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
-        ) : !hasCompletedOnboarding ? (
+        ) : !hasOnboarding ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : (
           <Stack.Screen name="Main" component={MainTabs} />
