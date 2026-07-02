@@ -7,6 +7,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { COLORS } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useAppStore } from '../store';
+import { useLoadUserData } from '../hooks/useLoadUserData';
 
 import HomeScreen from '../screens/home/HomeScreen';
 import CalculatorScreen from '../screens/calculator/CalculatorScreen';
@@ -72,6 +73,7 @@ export default function Navigation() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasOnboarding, setHasOnboarding] = useState(false);
   const { costConfig } = useAppStore();
+  useLoadUserData();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
