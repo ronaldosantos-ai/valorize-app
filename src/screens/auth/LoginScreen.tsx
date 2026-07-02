@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
 
@@ -21,7 +22,16 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  function switchMode(newMode: Mode) {
+    setMode(newMode);
+    setName('');
+    setEmail('');
+    setPassword('');
+    setShowPassword(false);
+  }
 
   async function handleSubmit() {
     if (!email || !password) {
@@ -45,7 +55,11 @@ export default function LoginScreen() {
           options: { data: { name } },
         });
         if (error) throw error;
-        Alert.alert('Cadastro realizado!', 'Verifique seu e-mail para confirmar a conta.');
+        Alert.alert(
+          'Cadastro realizado! 🎉',
+          'Verifique seu e-mail para confirmar a conta e depois volte aqui para entrar.',
+          [{ text: 'Entrar agora', onPress: () => switchMode('login') }]
+        );
       }
     } catch (err: any) {
       Alert.alert('Erro', err.message || 'Algo deu errado. Tente novamente.');
@@ -77,7 +91,7 @@ export default function LoginScreen() {
           <View style={styles.toggle}>
             <TouchableOpacity
               style={[styles.toggleBtn, mode === 'login' && styles.toggleActive]}
-              onPress={() => setMode('login')}
+              onPress={() => switchMode('login')}
             >
               <Text style={[styles.toggleText, mode === 'login' && styles.toggleTextActive]}>
                 Entrar
@@ -85,7 +99,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleBtn, mode === 'register' && styles.toggleActive]}
-              onPress={() => setMode('register')}
+              onPress={() => switchMode('register')}
             >
               <Text style={[styles.toggleText, mode === 'register' && styles.toggleTextActive]}>
                 Criar conta
@@ -93,7 +107,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Campos */}
+          {/* Nome (só no cadastro) */}
           {mode === 'register' && (
             <View style={styles.field}>
               <Text style={styles.label}>Seu nome</Text>
@@ -108,6 +122,7 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {/* Email */}
           <View style={styles.field}>
             <Text style={styles.label}>E-mail</Text>
             <TextInput
@@ -121,16 +136,30 @@ export default function LoginScreen() {
             />
           </View>
 
+          {/* Senha com olho */}
           <View style={styles.field}>
             <Text style={styles.label}>Senha</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor={COLORS.gray300}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="••••••••"
+                placeholderTextColor={COLORS.gray300}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={22}
+                  color={COLORS.gray500}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Botão principal */}
@@ -179,7 +208,6 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
 
-  // Header
   header: { alignItems: 'center', marginBottom: SPACING.xl },
   logoContainer: {
     width: 72,
@@ -205,7 +233,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Card
   card: {
     width: '100%',
     backgroundColor: COLORS.white,
@@ -218,7 +245,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
-  // Toggle
   toggle: {
     flexDirection: 'row',
     backgroundColor: COLORS.gray100,
@@ -236,7 +262,6 @@ const styles = StyleSheet.create({
   toggleText: { fontSize: FONT_SIZES.sm, color: COLORS.gray500, fontWeight: '600' },
   toggleTextActive: { color: COLORS.primary },
 
-  // Campos
   field: { marginBottom: SPACING.md },
   label: {
     fontSize: FONT_SIZES.sm,
@@ -254,7 +279,25 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.offWhite,
   },
 
-  // Botão
+  // Senha com olho
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.gray300,
+    borderRadius: 12,
+    backgroundColor: COLORS.offWhite,
+  },
+  passwordInput: {
+    flex: 1,
+    padding: SPACING.md,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.black,
+  },
+  eyeBtn: {
+    padding: SPACING.md,
+  },
+
   btn: {
     backgroundColor: COLORS.primary,
     borderRadius: 14,
@@ -265,11 +308,9 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.7 },
   btnText: { color: COLORS.white, fontSize: FONT_SIZES.md, fontWeight: '700' },
 
-  // Esqueci
   forgotBtn: { alignItems: 'center', marginTop: SPACING.md },
   forgotText: { fontSize: FONT_SIZES.sm, color: COLORS.gray500 },
 
-  // Rodapé
   footer: {
     marginTop: SPACING.lg,
     fontSize: FONT_SIZES.xs,
