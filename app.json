@@ -1,17 +1,19 @@
 {
   "expo": {
-    "name": "valorize-app",
-    "slug": "valorize-app",
+    "name": "Valorize",
+    "slug": "valorize",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.valorize.app"
     },
     "android": {
+      "package": "com.valorize.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1A4F8A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +22,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f65ff930-f63b-4dfa-9aee-eade7e424f06"
+      }
+    },
+    "owner": "ronaldosantos-ais-team",
+    "plugins": [
+      "expo-asset",
+      "expo-secure-store"
+    ]
   }
 }
