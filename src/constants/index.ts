@@ -5,11 +5,11 @@ export const MEI_ALERT_THRESHOLD = 0.8;         // alerta em 80%
 export const DAS_MEI_DEFAULT = 75.90;           // valor base 2026 (atualizar anualmente)
 export const TAX_REFORM_ADJUSTMENT_DEFAULT = 3.5; // % de ajuste Reforma 2026
 
-// ─── Paleta de Cores ───────────────────────────────────────
+// ─── Paleta de Cores (Premium — Azul-marinho + Dourado) ────
 export const COLORS = {
-  primary: '#1A4F8A',       // Azul Profissional
-  primaryLight: '#2E6DB4',
-  primaryDark: '#0F3460',
+  primary: '#101E36',       // Azul-marinho profundo (principal)
+  primaryLight: '#1C2F52',  // Um tom acima, para variação/hover
+  primaryDark: '#0A1424',   // Ainda mais escuro, para profundidade
   gold: '#C9A84C',          // Dourado
   goldLight: '#E8D49E',
   white: '#FFFFFF',
