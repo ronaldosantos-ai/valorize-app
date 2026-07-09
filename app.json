@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.valorize.app",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#101E36",
         "foregroundImage": "./assets/android-icon-foreground.png",
