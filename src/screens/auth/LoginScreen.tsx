@@ -82,7 +82,7 @@ export default function LoginScreen() {
             <Image
               source={require('../../../assets/icon.png')}
               style={styles.logoImage}
-              resizeMode="cover"
+              resizeMode="contain"
             />
           </View>
           <Text style={styles.logoText}>Valorize</Text>
@@ -220,6 +220,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     marginBottom: SPACING.sm,
+    backgroundColor: COLORS.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -227,8 +230,9 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   logoImage: {
-    width: '100%',
-    height: '100%',
+    width: '78%',
+    height: '78%',
+    borderRadius: 12,
   },
   logoText: {
     fontSize: FONT_SIZES.xxl,
