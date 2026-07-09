@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
@@ -78,7 +79,11 @@ export default function LoginScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoIcon}>💅</Text>
+            <Image
+              source={require('../../../assets/icon.png')}
+              style={styles.logoImage}
+              resizeMode="cover"
+            />
           </View>
           <Text style={styles.logoText}>Valorize</Text>
           <Text style={styles.tagline}>Saiba exatamente quanto cobrar{'\n'}para ter o lucro que você merece.</Text>
@@ -187,7 +192,7 @@ export default function LoginScreen() {
 
         {/* Rodapé */}
         <Text style={styles.footer}>
-          Teste grátis por 3 dias. Sem cartão de crédito.
+          Teste grátis por 7 dias.
         </Text>
 
       </ScrollView>
@@ -210,15 +215,21 @@ const styles = StyleSheet.create({
 
   header: { alignItems: 'center', marginBottom: SPACING.xl },
   logoContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 88,
+    height: 88,
+    borderRadius: 22,
+    overflow: 'hidden',
     marginBottom: SPACING.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  logoIcon: { fontSize: 36 },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+  },
   logoText: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '800',
