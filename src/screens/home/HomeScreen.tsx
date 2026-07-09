@@ -7,15 +7,20 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { COLORS, SPACING, FONT_SIZES, MEI_ANNUAL_LIMIT } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency, calcMeiProgress, calcSalaryProgress } from '../../utils/pricing';
 import { useAppStore } from '../../store';
+import type { TabParamList } from '../../navigation';
 
 export default function HomeScreen() {
-  const { costConfig } = useAppStore();
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const { costConfig, services } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState('');
@@ -118,7 +123,11 @@ export default function HomeScreen() {
           <Text style={styles.date}>{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
         </View>
         <View style={styles.avatarContainer}>
-          <Text style={styles.avatarEmoji}>💅</Text>
+          <Image
+            source={require('../../../assets/icon.png')}
+            style={styles.avatarLogo}
+            resizeMode="contain"
+          />
         </View>
       </View>
 
@@ -185,16 +194,53 @@ export default function HomeScreen() {
         )}
       </View>
 
+      {/* Checklist de configuração inicial */}
+      {(!costConfig || services.length === 0) && (
+        <View style={styles.setupBox}>
+          <Text style={styles.setupTitle}>🚀 Complete sua configuração</Text>
+          {!costConfig && (
+            <TouchableOpacity
+              style={styles.setupItem}
+              onPress={() => navigation.navigate('Calculator')}
+            >
+              <Ionicons name="settings-outline" size={20} color={COLORS.gold} />
+              <View style={styles.setupItemText}>
+                <Text style={styles.setupItemTitle}>Configure seus custos</Text>
+                <Text style={styles.setupItemDesc}>Aluguel, luz, salário desejado e impostos</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.gray300} />
+            </TouchableOpacity>
+          )}
+          {services.length === 0 && (
+            <TouchableOpacity
+              style={styles.setupItem}
+              onPress={() => navigation.navigate('Calculator')}
+            >
+              <Ionicons name="pricetag-outline" size={20} color={COLORS.gold} />
+              <View style={styles.setupItemText}>
+                <Text style={styles.setupItemTitle}>Cadastre seu primeiro serviço</Text>
+                <Text style={styles.setupItemDesc}>Descubra quanto cobrar com segurança</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.gray300} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {/* Ações rápidas */}
       <Text style={styles.quickTitle}>Acesso rápido</Text>
       <View style={styles.quickRow}>
         {[
-          { icon: 'add-circle', label: 'Registrar\natendimento', color: COLORS.primary },
-          { icon: 'calculator', label: 'Calcular\npreço', color: COLORS.gold },
-          { icon: 'grid', label: 'Gerar\ntabela', color: COLORS.primaryLight },
-          { icon: 'trending-up', label: 'Simular\ncenário', color: COLORS.success },
+          { icon: 'add-circle', label: 'Registrar\natendimento', color: COLORS.primary, screen: 'Register' as const },
+          { icon: 'calculator', label: 'Calcular\npreço', color: COLORS.gold, screen: 'Calculator' as const },
+          { icon: 'grid', label: 'Gerar\ntabela', color: COLORS.primaryLight, screen: 'Table' as const },
+          { icon: 'trending-up', label: 'Simular\ncenário', color: COLORS.success, screen: 'Simulator' as const },
         ].map((item) => (
-          <TouchableOpacity key={item.label} style={styles.quickCard}>
+          <TouchableOpacity
+            key={item.label}
+            style={styles.quickCard}
+            onPress={() => navigation.navigate(item.screen)}
+          >
             <View style={[styles.quickIcon, { backgroundColor: item.color + '20' }]}>
               <Ionicons name={item.icon as any} size={24} color={item.color} />
             </View>
@@ -203,13 +249,15 @@ export default function HomeScreen() {
         ))}
       </View>
 
-      {/* Dica do dia */}
-      <View style={styles.tipBox}>
-        <Text style={styles.tipTitle}>💡 Dica do dia</Text>
-        <Text style={styles.tipText}>
-          Puxe a tela para baixo para atualizar seus dados. Registre cada atendimento logo após concluir para ver seu lucro em tempo real!
-        </Text>
-      </View>
+      {/* Dica do dia — só aparece quando a configuração está completa */}
+      {costConfig && services.length > 0 && (
+        <View style={styles.tipBox}>
+          <Text style={styles.tipTitle}>💡 Dica do dia</Text>
+          <Text style={styles.tipText}>
+            Registre cada atendimento logo após concluir para ver seu lucro em tempo real!
+          </Text>
+        </View>
+      )}
 
     </ScrollView>
   );
@@ -238,12 +286,45 @@ const styles = StyleSheet.create({
   avatarContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primaryLight + '20',
+    borderRadius: 14,
+    backgroundColor: COLORS.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  avatarEmoji: { fontSize: 24 },
+  avatarLogo: { width: '80%', height: '80%', borderRadius: 8 },
+
+  // Checklist de configuração
+  setupBox: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.gold + '50',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  setupTitle: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: SPACING.sm,
+  },
+  setupItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray100,
+  },
+  setupItemText: { flex: 1 },
+  setupItemTitle: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.gray700 },
+  setupItemDesc: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 2 },
 
   // Cards do dia
   cardsRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },

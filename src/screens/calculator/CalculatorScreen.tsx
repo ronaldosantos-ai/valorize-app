@@ -318,7 +318,7 @@ export default function CalculatorScreen() {
           <View style={styles.warningBox}>
             <Ionicons name="warning-outline" size={20} color={COLORS.warning} />
             <Text style={styles.warningText}>
-              Configure seus custos no onboarding para que os cálculos funcionem corretamente.
+              Seus custos ainda não foram carregados. Complete a configuração inicial na tela de Início para que os cálculos funcionem corretamente.
             </Text>
           </View>
         )}
