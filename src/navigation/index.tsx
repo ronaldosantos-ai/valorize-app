@@ -76,33 +76,54 @@ export default function Navigation() {
   useLoadUserData();
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setIsAuthenticated(true);
-        const { data } = await supabase
-          .from('profiles')
-          .select('has_completed_onboarding')
-          .eq('id', session.user.id)
-          .single();
-        setHasOnboarding(data?.has_completed_onboarding || false);
+    // Timeout de segurança: nunca deixa o app preso no carregamento
+    const safetyTimer = setTimeout(() => setLoading(false), 8000);
+
+    async function checkSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setIsAuthenticated(true);
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('has_completed_onboarding')
+              .eq('id', session.user.id)
+              .single();
+            setHasOnboarding(data?.has_completed_onboarding || false);
+          } catch {
+            setHasOnboarding(false);
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao verificar sessão:', err);
+      } finally {
+        clearTimeout(safetyTimer);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    }
+    checkSession();
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setIsAuthenticated(true);
-        const { data } = await supabase
-          .from('profiles')
-          .select('has_completed_onboarding')
-          .eq('id', session.user.id)
-          .single();
-        setHasOnboarding(data?.has_completed_onboarding || false);
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('has_completed_onboarding')
+            .eq('id', session.user.id)
+            .single();
+          setHasOnboarding(data?.has_completed_onboarding || false);
+        } catch {
+          setHasOnboarding(false);
+        }
       } else {
         setIsAuthenticated(false);
         setHasOnboarding(false);
       }
     });
+
+    return () => clearTimeout(safetyTimer);
   }, []);
 
   // Quando costConfig é salvo, onboarding está completo
