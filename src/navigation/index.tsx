@@ -16,11 +16,13 @@ import TableScreen from '../screens/table/TableScreen';
 import SimulatorScreen from '../screens/simulator/SimulatorScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
+import CostSettingsScreen from '../screens/settings/CostSettingsScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
   Main: undefined;
+  CostSettings: undefined;
 };
 
 export type TabParamList = {
@@ -85,12 +87,20 @@ export default function Navigation() {
         if (session?.user) {
           setIsAuthenticated(true);
           try {
-            const { data } = await supabase
-              .from('profiles')
-              .select('has_completed_onboarding')
-              .eq('id', session.user.id)
-              .single();
-            setHasOnboarding(data?.has_completed_onboarding || false);
+            const [{ data: profile }, { data: config }] = await Promise.all([
+              supabase
+                .from('profiles')
+                .select('has_completed_onboarding')
+                .eq('id', session.user.id)
+                .single(),
+              supabase
+                .from('cost_configs')
+                .select('id')
+                .eq('user_id', session.user.id)
+                .maybeSingle(),
+            ]);
+            // Onboarding completo se o perfil diz que sim OU se já existem custos salvos
+            setHasOnboarding(Boolean(profile?.has_completed_onboarding || config));
           } catch {
             setHasOnboarding(false);
           }
@@ -147,7 +157,10 @@ export default function Navigation() {
         ) : !hasOnboarding ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="CostSettings" component={CostSettingsScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

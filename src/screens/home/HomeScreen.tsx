@@ -201,7 +201,7 @@ export default function HomeScreen() {
           {!costConfig && (
             <TouchableOpacity
               style={styles.setupItem}
-              onPress={() => navigation.navigate('Calculator')}
+              onPress={() => navigation.getParent()?.navigate('CostSettings' as never)}
             >
               <Ionicons name="settings-outline" size={20} color={COLORS.gold} />
               <View style={styles.setupItemText}>

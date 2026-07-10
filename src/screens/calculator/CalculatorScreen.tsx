@@ -140,7 +140,7 @@ export default function CalculatorScreen() {
 
   function renderService({ item }: { item: Service }) {
     return (
-      <View style={[styles.serviceCard, !item.is_active && styles.serviceCardInactive]}>
+      <View style={styles.serviceCard}>
         <View style={styles.serviceHeader}>
           <Text style={styles.serviceName}>{item.name}</Text>
           <TouchableOpacity onPress={() => handleToggleActive(item)}>
@@ -156,19 +156,19 @@ export default function CalculatorScreen() {
           <View style={styles.priceItem}>
             <Text style={styles.priceItemLabel}>Mínimo</Text>
             <Text style={[styles.priceItemValue, { color: COLORS.danger }]}>
-              {formatCurrency(item.min_price)}
+              {item.is_active ? formatCurrency(item.min_price) : 'R$ ••••'}
             </Text>
           </View>
           <View style={styles.priceItem}>
             <Text style={styles.priceItemLabel}>Percebido</Text>
             <Text style={[styles.priceItemValue, { color: COLORS.warning }]}>
-              {formatCurrency(item.perceived_price)}
+              {item.is_active ? formatCurrency(item.perceived_price) : 'R$ ••••'}
             </Text>
           </View>
           <View style={styles.priceItem}>
             <Text style={styles.priceItemLabel}>Blindado</Text>
             <Text style={[styles.priceItemValue, { color: COLORS.success }]}>
-              {formatCurrency(item.shielded_price)}
+              {item.is_active ? formatCurrency(item.shielded_price) : 'R$ ••••'}
             </Text>
           </View>
         </View>
