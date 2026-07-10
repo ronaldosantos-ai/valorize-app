@@ -1,25 +1,46 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   Alert,
   Share,
   Switch,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { useAppStore } from '../../store';
 import { formatCurrency } from '../../utils/pricing';
-import { Service } from '../../types';
 
+const SETTINGS_KEY = '@valorize/table_settings';
+
+// ─── Temas completos (estilo, não só cor) ──────────────────
 const THEMES = [
-  { key: 'blue', label: 'Azul Premium', bg: '#1A4F8A', accent: '#C9A84C', text: '#FFFFFF' },
-  { key: 'dark', label: 'Noite Elegante', bg: '#1A1A2E', accent: '#C9A84C', text: '#FFFFFF' },
-  { key: 'rose', label: 'Rosa Delicado', bg: '#FFF0F5', accent: '#D4628A', text: '#3A1A2E' },
-  { key: 'gold', label: 'Dourado Luxo', bg: '#2C1810', accent: '#C9A84C', text: '#F5E6C8' },
+  { key: 'navy_gold', label: 'Premium Dourado', bg: '#101E36', accent: '#C9A84C', emoji: '💅' },
+  { key: 'noir', label: 'Noite Elegante', bg: '#1A1A2E', accent: '#E8D49E', emoji: '✨' },
+  { key: 'rose', label: 'Rosa Delicado', bg: '#FFF0F5', accent: '#D4628A', emoji: '🌸' },
+  { key: 'burgundy', label: 'Vinho Luxo', bg: '#3D0C11', accent: '#E8B4B8', emoji: '🍷' },
+  { key: 'emerald', label: 'Esmeralda', bg: '#0B2B26', accent: '#C9A84C', emoji: '💎' },
+  { key: 'cream', label: 'Clean Minimalista', bg: '#F8F6F0', accent: '#8B7355', emoji: '🤍' },
+];
+
+// ─── Paleta de cores livres ────────────────────────────────
+const BG_COLORS = [
+  '#101E36', '#1A1A2E', '#0B2B26', '#3D0C11', '#2C1810', '#1F2937',
+  '#FFF0F5', '#F8F6F0', '#FDF2F8', '#EFF6FF', '#F0FDF4', '#FFFBEB',
+  '#4C1D95', '#831843', '#7C2D12', '#14532D', '#1E3A8A', '#000000',
+];
+
+const ACCENT_COLORS = [
+  '#C9A84C', '#E8D49E', '#D4628A', '#E8B4B8', '#8B7355', '#B76E79',
+  '#FFD700', '#C0C0C0', '#E5989B', '#9D4EDD', '#2A9D8F', '#E76F51',
+  '#FFFFFF', '#F72585', '#4CC9F0', '#80ED99', '#FB8500', '#EF233C',
 ];
 
 type PriceType = 'min_price' | 'perceived_price' | 'shielded_price';
@@ -30,18 +51,100 @@ const PRICE_OPTIONS: { key: PriceType; label: string; desc: string }[] = [
   { key: 'shielded_price', label: 'Preço Blindado 2026', desc: 'Com impostos' },
 ];
 
-export default function TableScreen() {
-  const { services } = useAppStore();
-  const [selectedTheme, setSelectedTheme] = useState(THEMES[0]);
-  const [priceType, setPriceType] = useState<PriceType>('shielded_price');
-  const [salonName, setSalonNameState] = useState('Meu Salão');
-  const [showCardFee, setShowCardFee] = useState(false);
-  const [selectedServices, setSelectedServices] = useState<string[]>(
-    services.filter(s => s.is_active).map(s => s.id)
-  );
+// Texto escuro ou claro conforme o fundo
+function textColorFor(bg: string): string {
+  const hex = bg.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? '#2A2A35' : '#FFFFFF';
+}
 
+export default function TableScreen() {
+  const { services, costConfig } = useAppStore();
+
+  // Personalização
+  const [salonName, setSalonName] = useState('Meu Salão');
+  const [subtitle, setSubtitle] = useState('✨ Tabela de Preços ✨');
+  const [footerText, setFooterText] = useState('📲 Agende pelo WhatsApp!');
+  const [headerImage, setHeaderImage] = useState<string | null>(null);
+  const [bgColor, setBgColor] = useState('#101E36');
+  const [accentColor, setAccentColor] = useState('#C9A84C');
+  const [headerEmoji, setHeaderEmoji] = useState('💅');
+
+  const [priceType, setPriceType] = useState<PriceType>('shielded_price');
+  const [showCardFee, setShowCardFee] = useState(false);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  const textColor = textColorFor(bgColor);
   const activeServices = services.filter(s => s.is_active);
   const displayServices = activeServices.filter(s => selectedServices.includes(s.id));
+
+  // Carrega personalização salva
+  useEffect(() => {
+    AsyncStorage.getItem(SETTINGS_KEY).then((stored) => {
+      if (stored) {
+        try {
+          const s = JSON.parse(stored);
+          if (s.salonName) setSalonName(s.salonName);
+          if (s.subtitle) setSubtitle(s.subtitle);
+          if (s.footerText) setFooterText(s.footerText);
+          if (s.headerImage) setHeaderImage(s.headerImage);
+          if (s.bgColor) setBgColor(s.bgColor);
+          if (s.accentColor) setAccentColor(s.accentColor);
+          if (s.headerEmoji) setHeaderEmoji(s.headerEmoji);
+        } catch {}
+      }
+      setSettingsLoaded(true);
+    });
+  }, []);
+
+  // Seleciona todos os serviços ativos por padrão
+  useEffect(() => {
+    setSelectedServices(activeServices.map(s => s.id));
+  }, [services]);
+
+  // Salva personalização a cada mudança
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      salonName, subtitle, footerText, headerImage, bgColor, accentColor, headerEmoji,
+    }));
+  }, [salonName, subtitle, footerText, headerImage, bgColor, accentColor, headerEmoji, settingsLoaded]);
+
+  // Preço exibido: com taxa embutida quando o toggle está ligado
+  function displayPrice(service: any): number {
+    const base = service[priceType] as number;
+    if (showCardFee && costConfig?.card_fee_percent) {
+      return Math.ceil((base / (1 - costConfig.card_fee_percent / 100)) * 2) / 2;
+    }
+    return base;
+  }
+
+  function applyTheme(theme: typeof THEMES[0]) {
+    setBgColor(theme.bg);
+    setAccentColor(theme.accent);
+    setHeaderEmoji(theme.emoji);
+  }
+
+  async function handlePickImage() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permissão necessária', 'Autorize o acesso às fotos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setHeaderImage(result.assets[0].uri);
+    }
+  }
 
   function toggleService(id: string) {
     setSelectedServices(prev =>
@@ -51,28 +154,21 @@ export default function TableScreen() {
 
   async function handleShare() {
     try {
-      await Share.share({
-        message: generateTextTable(),
-        title: 'Tabela de Preços — ' + salonName,
-      });
-    } catch (err) {
+      const lines = [
+        `${headerEmoji} ${salonName.toUpperCase()}`,
+        subtitle,
+        ``,
+        ...displayServices.map(s =>
+          `• ${s.name} .............. ${formatCurrency(displayPrice(s))}`
+        ),
+        ``,
+        showCardFee ? `💳 Taxa de maquininha já inclusa nos preços` : '',
+        footerText,
+      ].filter(Boolean);
+      await Share.share({ message: lines.join('\n'), title: `Tabela — ${salonName}` });
+    } catch {
       Alert.alert('Erro', 'Não foi possível compartilhar.');
     }
-  }
-
-  function generateTextTable(): string {
-    const lines = [
-      `💅 ${salonName.toUpperCase()}`,
-      `✨ TABELA DE PREÇOS ✨`,
-      ``,
-      ...displayServices.map(s =>
-        `• ${s.name} .............. ${formatCurrency(s[priceType])}`
-      ),
-      ``,
-      showCardFee ? `💳 Taxa de cartão já inclusa nos preços` : '',
-      `📲 Agende pelo WhatsApp!`,
-    ].filter(Boolean);
-    return lines.join('\n');
   }
 
   if (activeServices.length === 0) {
@@ -90,34 +186,51 @@ export default function TableScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Tabela Premium</Text>
-        <Text style={styles.subtitle}>Gere seu card para Instagram e WhatsApp</Text>
+        <Text style={styles.subtitle}>Personalize e compartilhe com suas clientes</Text>
       </View>
 
-      {/* Preview da tabela */}
-      <View style={[styles.tablePreview, { backgroundColor: selectedTheme.bg }]}>
-        {/* Decoração topo */}
-        <View style={[styles.tableAccentBar, { backgroundColor: selectedTheme.accent }]} />
+      {/* ═══ PREVIEW DO CARTÃO ═══ */}
+      <View style={[styles.tablePreview, { backgroundColor: bgColor }]}>
+        <View style={[styles.tableAccentBar, { backgroundColor: accentColor }]} />
 
-        {/* Emoji e nome */}
         <View style={styles.tableHeader}>
-          <Text style={styles.tableEmoji}>💅</Text>
-          <Text style={[styles.tableSalonName, { color: selectedTheme.accent }]}>
-            {salonName}
-          </Text>
-          <Text style={[styles.tableSubtitle, { color: selectedTheme.text + 'CC' }]}>
-            ✨ Tabela de Preços ✨
-          </Text>
+          <TouchableOpacity onPress={handlePickImage} style={styles.tableImageWrapper}>
+            {headerImage ? (
+              <Image source={{ uri: headerImage }} style={styles.tableHeaderImage} />
+            ) : (
+              <View style={[styles.tableImagePlaceholder, { borderColor: accentColor }]}>
+                <Text style={{ fontSize: 32 }}>{headerEmoji}</Text>
+                <View style={[styles.tableImageEditBadge, { backgroundColor: accentColor }]}>
+                  <Ionicons name="camera" size={12} color={bgColor} />
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TextInput
+            style={[styles.tableSalonNameInput, { color: accentColor }]}
+            value={salonName}
+            onChangeText={setSalonName}
+            placeholder="Nome do salão"
+            placeholderTextColor={accentColor + '80'}
+            textAlign="center"
+          />
+          <TextInput
+            style={[styles.tableSubtitleInput, { color: textColor + 'CC' }]}
+            value={subtitle}
+            onChangeText={setSubtitle}
+            placeholder="Subtítulo"
+            placeholderTextColor={textColor + '60'}
+            textAlign="center"
+          />
         </View>
 
-        {/* Divisor */}
-        <View style={[styles.tableDivider, { backgroundColor: selectedTheme.accent }]} />
+        <View style={[styles.tableDivider, { backgroundColor: accentColor }]} />
 
-        {/* Serviços */}
         {displayServices.length === 0 ? (
-          <Text style={[styles.tableEmpty, { color: selectedTheme.text + '80' }]}>
+          <Text style={[styles.tableEmpty, { color: textColor + '80' }]}>
             Selecione os serviços abaixo
           </Text>
         ) : (
@@ -128,64 +241,102 @@ export default function TableScreen() {
                 styles.tableRow,
                 index < displayServices.length - 1 && {
                   borderBottomWidth: 0.5,
-                  borderBottomColor: selectedTheme.accent + '40',
+                  borderBottomColor: accentColor + '40',
                 }
               ]}
             >
-              <Text style={[styles.tableServiceName, { color: selectedTheme.text }]}>
+              <Text style={[styles.tableServiceName, { color: textColor }]}>
                 {service.name}
               </Text>
-              <Text style={[styles.tableServicePrice, { color: selectedTheme.accent }]}>
-                {formatCurrency(service[priceType])}
+              <Text style={[styles.tableServicePrice, { color: accentColor }]}>
+                {formatCurrency(displayPrice(service))}
               </Text>
             </View>
           ))
         )}
 
-        {/* Divisor */}
-        <View style={[styles.tableDivider, { backgroundColor: selectedTheme.accent }]} />
+        <View style={[styles.tableDivider, { backgroundColor: accentColor }]} />
 
-        {/* Rodapé */}
         <View style={styles.tableFooter}>
           {showCardFee && (
-            <Text style={[styles.tableFooterText, { color: selectedTheme.text + 'AA' }]}>
-              💳 Taxa de cartão inclusa
+            <Text style={[styles.tableFooterText, { color: textColor + 'AA' }]}>
+              💳 Taxa de maquininha inclusa
             </Text>
           )}
-          <Text style={[styles.tableFooterText, { color: selectedTheme.text + 'AA' }]}>
-            📲 Agende pelo WhatsApp
-          </Text>
+          <TextInput
+            style={[styles.tableFooterInput, { color: textColor + 'AA' }]}
+            value={footerText}
+            onChangeText={setFooterText}
+            placeholder="Texto do rodapé"
+            placeholderTextColor={textColor + '50'}
+            textAlign="center"
+          />
         </View>
 
-        {/* Decoração baixo */}
-        <View style={[styles.tableAccentBar, { backgroundColor: selectedTheme.accent }]} />
+        <View style={[styles.tableAccentBar, { backgroundColor: accentColor }]} />
       </View>
 
-      {/* Configurações */}
+      <Text style={styles.editHint}>
+        ✏️ Toque nos textos e na imagem do cartão acima para editar
+      </Text>
+
+      {/* ═══ TEMAS ═══ */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🎨 Tema</Text>
-        <View style={styles.themesRow}>
+        <Text style={styles.sectionTitle}>🎨 Temas prontos</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {THEMES.map((theme) => (
             <TouchableOpacity
               key={theme.key}
               style={[
-                styles.themeChip,
+                styles.themeCard,
                 { backgroundColor: theme.bg },
-                selectedTheme.key === theme.key && styles.themeChipActive,
+                bgColor === theme.bg && accentColor === theme.accent && styles.themeCardActive,
               ]}
-              onPress={() => setSelectedTheme(theme)}
+              onPress={() => applyTheme(theme)}
             >
-              <Text style={{ color: theme.text, fontSize: 10, fontWeight: '700' }}>
+              <Text style={{ fontSize: 20 }}>{theme.emoji}</Text>
+              <Text style={{ color: theme.accent, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>
                 {theme.label}
               </Text>
-              {selectedTheme.key === theme.key && (
-                <Ionicons name="checkmark-circle" size={14} color={theme.accent} />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* ═══ CORES LIVRES ═══ */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🎨 Cor de fundo</Text>
+        <View style={styles.colorGrid}>
+          {BG_COLORS.map((c) => (
+            <TouchableOpacity
+              key={c}
+              style={[styles.colorSwatch, { backgroundColor: c }, bgColor === c && styles.colorSwatchActive]}
+              onPress={() => setBgColor(c)}
+            >
+              {bgColor === c && (
+                <Ionicons name="checkmark" size={16} color={textColorFor(c)} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={[styles.sectionTitle, { marginTop: SPACING.md }]}>✨ Cor de destaque</Text>
+        <View style={styles.colorGrid}>
+          {ACCENT_COLORS.map((c) => (
+            <TouchableOpacity
+              key={c}
+              style={[styles.colorSwatch, { backgroundColor: c }, accentColor === c && styles.colorSwatchActive]}
+              onPress={() => setAccentColor(c)}
+            >
+              {accentColor === c && (
+                <Ionicons name="checkmark" size={16} color={textColorFor(c)} />
               )}
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
+      {/* ═══ TIPO DE PREÇO ═══ */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>💰 Tipo de preço</Text>
         {PRICE_OPTIONS.map((opt) => (
@@ -207,11 +358,16 @@ export default function TableScreen() {
         ))}
       </View>
 
+      {/* ═══ TAXA INCLUSA ═══ */}
       <View style={styles.section}>
         <View style={styles.switchRow}>
-          <View>
-            <Text style={styles.sectionTitle}>💳 Mostrar "taxa inclusa"</Text>
-            <Text style={styles.switchDesc}>Evita surpresas no pagamento</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>💳 Embutir taxa de maquininha</Text>
+            <Text style={styles.switchDesc}>
+              {costConfig?.card_fee_percent
+                ? `Recalcula os preços com a taxa de ${costConfig.card_fee_percent}% inclusa`
+                : 'Configure a taxa em Configurações de Custos'}
+            </Text>
           </View>
           <Switch
             value={showCardFee}
@@ -222,6 +378,7 @@ export default function TableScreen() {
         </View>
       </View>
 
+      {/* ═══ SERVIÇOS ═══ */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>💅 Serviços na tabela</Text>
         {activeServices.map((service) => (
@@ -234,7 +391,7 @@ export default function TableScreen() {
               {service.name}
             </Text>
             <Text style={styles.serviceTogglePrice}>
-              {formatCurrency(service[priceType])}
+              {formatCurrency(displayPrice(service))}
             </Text>
             <Ionicons
               name={selectedServices.includes(service.id) ? 'checkbox' : 'square-outline'}
@@ -245,7 +402,7 @@ export default function TableScreen() {
         ))}
       </View>
 
-      {/* Botão compartilhar */}
+      {/* ═══ COMPARTILHAR ═══ */}
       <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
         <Ionicons name="share-social-outline" size={22} color={COLORS.white} />
         <Text style={styles.shareBtnText}>Compartilhar tabela</Text>
@@ -263,7 +420,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.lg, paddingBottom: SPACING.xxl },
 
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, backgroundColor: COLORS.background },
   emptyEmoji: { fontSize: 56, marginBottom: SPACING.md },
   emptyTitle: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary, marginBottom: SPACING.sm },
   emptyDesc: { fontSize: FONT_SIZES.sm, color: COLORS.gray500, textAlign: 'center', lineHeight: 22 },
@@ -276,7 +433,7 @@ const styles = StyleSheet.create({
   tablePreview: {
     borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xs,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -285,9 +442,45 @@ const styles = StyleSheet.create({
   },
   tableAccentBar: { height: 6 },
   tableHeader: { alignItems: 'center', paddingVertical: SPACING.lg, paddingHorizontal: SPACING.lg },
-  tableEmoji: { fontSize: 40, marginBottom: SPACING.xs },
-  tableSalonName: { fontSize: FONT_SIZES.xl, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
-  tableSubtitle: { fontSize: FONT_SIZES.sm, marginTop: 4, letterSpacing: 1 },
+
+  tableImageWrapper: { marginBottom: SPACING.sm },
+  tableHeaderImage: { width: 72, height: 72, borderRadius: 36 },
+  tableImagePlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  tableImageEditBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  tableSalonNameInput: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '900',
+    letterSpacing: 2,
+    minWidth: 200,
+    padding: 0,
+  },
+  tableSubtitleInput: {
+    fontSize: FONT_SIZES.sm,
+    marginTop: 4,
+    letterSpacing: 1,
+    minWidth: 200,
+    padding: 0,
+  },
+
   tableDivider: { height: 1, marginHorizontal: SPACING.lg, opacity: 0.6 },
   tableRow: {
     flexDirection: 'row',
@@ -301,8 +494,15 @@ const styles = StyleSheet.create({
   tableEmpty: { textAlign: 'center', padding: SPACING.lg, fontSize: FONT_SIZES.sm },
   tableFooter: { alignItems: 'center', paddingVertical: SPACING.md, gap: 4 },
   tableFooterText: { fontSize: FONT_SIZES.xs, letterSpacing: 0.5 },
+  tableFooterInput: { fontSize: FONT_SIZES.xs, letterSpacing: 0.5, minWidth: 200, padding: 0 },
 
-  // Seções
+  editHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray500,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+
   section: {
     backgroundColor: COLORS.white,
     borderRadius: 16,
@@ -317,18 +517,32 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: FONT_SIZES.sm, fontWeight: '700', color: COLORS.gray700, marginBottom: SPACING.sm },
 
   // Temas
-  themesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
-  themeChip: {
-    flexDirection: 'row',
+  themeCard: {
+    width: 90,
+    height: 70,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.xs,
     gap: 4,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: 20,
+    padding: 4,
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  themeChipActive: { borderColor: COLORS.gold },
+  themeCardActive: { borderColor: COLORS.gold },
+
+  // Cores
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
+  colorSwatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+  },
+  colorSwatchActive: { borderWidth: 3, borderColor: COLORS.gold },
 
   // Tipo de preço
   priceOption: {
@@ -348,7 +562,7 @@ const styles = StyleSheet.create({
   priceOptionDesc: { fontSize: FONT_SIZES.xs, color: COLORS.gray500 },
 
   // Switch
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.sm },
   switchDesc: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 2 },
 
   // Serviços

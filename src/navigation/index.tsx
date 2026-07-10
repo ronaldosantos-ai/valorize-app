@@ -17,12 +17,16 @@ import SimulatorScreen from '../screens/simulator/SimulatorScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import CostSettingsScreen from '../screens/settings/CostSettingsScreen';
+import AccountMenuScreen from '../screens/account/AccountMenuScreen';
+import PaymentHistoryScreen from '../screens/account/PaymentHistoryScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
   Main: undefined;
   CostSettings: undefined;
+  AccountMenu: undefined;
+  PaymentHistory: undefined;
 };
 
 export type TabParamList = {
@@ -160,6 +164,8 @@ export default function Navigation() {
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="CostSettings" component={CostSettingsScreen} />
+            <Stack.Screen name="AccountMenu" component={AccountMenuScreen} />
+            <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
           </>
         )}
       </Stack.Navigator>

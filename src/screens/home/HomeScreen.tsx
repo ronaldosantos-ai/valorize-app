@@ -10,8 +10,9 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES, MEI_ANNUAL_LIMIT } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency, calcMeiProgress, calcSalaryProgress } from '../../utils/pricing';
@@ -21,7 +22,15 @@ import type { TabParamList } from '../../navigation';
 export default function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const { costConfig, services } = useAppStore();
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Recarrega o avatar sempre que a Home ganha foco (ex: após trocar a foto)
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem('@valorize/avatar').then(setAvatarUri);
+    }, [])
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState('');
   const [todayProfit, setTodayProfit] = useState(0);
@@ -122,13 +131,20 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>{greeting}, {userName || 'profissional'}! 👋</Text>
           <Text style={styles.date}>{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
         </View>
-        <View style={styles.avatarContainer}>
-          <Image
-            source={require('../../../assets/icon.png')}
-            style={styles.avatarLogo}
-            resizeMode="contain"
-          />
-        </View>
+        <TouchableOpacity
+          style={styles.avatarContainer}
+          onPress={() => navigation.getParent()?.navigate('AccountMenu' as never)}
+        >
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatarPhoto} />
+          ) : (
+            <Image
+              source={require('../../../assets/icon.png')}
+              style={styles.avatarLogo}
+              resizeMode="contain"
+            />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Cards do dia */}
@@ -293,6 +309,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarLogo: { width: '80%', height: '80%', borderRadius: 8 },
+  avatarPhoto: { width: '100%', height: '100%' },
 
   // Checklist de configuração
   setupBox: {
