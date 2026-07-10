@@ -69,6 +69,7 @@ export default function TableScreen() {
   const [subtitle, setSubtitle] = useState('✨ Tabela de Preços ✨');
   const [footerText, setFooterText] = useState('📲 Agende pelo WhatsApp!');
   const [headerImage, setHeaderImage] = useState<string | null>(null);
+  const [promoImage, setPromoImage] = useState<string | null>(null);
   const [bgColor, setBgColor] = useState('#101E36');
   const [accentColor, setAccentColor] = useState('#C9A84C');
   const [headerEmoji, setHeaderEmoji] = useState('💅');
@@ -92,6 +93,7 @@ export default function TableScreen() {
           if (s.subtitle) setSubtitle(s.subtitle);
           if (s.footerText) setFooterText(s.footerText);
           if (s.headerImage) setHeaderImage(s.headerImage);
+          if (s.promoImage) setPromoImage(s.promoImage);
           if (s.bgColor) setBgColor(s.bgColor);
           if (s.accentColor) setAccentColor(s.accentColor);
           if (s.headerEmoji) setHeaderEmoji(s.headerEmoji);
@@ -110,9 +112,9 @@ export default function TableScreen() {
   useEffect(() => {
     if (!settingsLoaded) return;
     AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      salonName, subtitle, footerText, headerImage, bgColor, accentColor, headerEmoji,
+      salonName, subtitle, footerText, headerImage, promoImage, bgColor, accentColor, headerEmoji,
     }));
-  }, [salonName, subtitle, footerText, headerImage, bgColor, accentColor, headerEmoji, settingsLoaded]);
+  }, [salonName, subtitle, footerText, headerImage, promoImage, bgColor, accentColor, headerEmoji, settingsLoaded]);
 
   // Preço exibido: com taxa embutida quando o toggle está ligado
   function displayPrice(service: any): number {
@@ -129,7 +131,7 @@ export default function TableScreen() {
     setHeaderEmoji(theme.emoji);
   }
 
-  async function handlePickImage() {
+  async function handlePickImage(target: 'header' | 'promo') {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('Permissão necessária', 'Autorize o acesso às fotos.');
@@ -138,12 +140,17 @@ export default function TableScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [1, 1],
+      aspect: target === 'header' ? [1, 1] : [4, 3],
       quality: 0.7,
     });
     if (!result.canceled && result.assets[0]) {
-      setHeaderImage(result.assets[0].uri);
+      if (target === 'header') setHeaderImage(result.assets[0].uri);
+      else setPromoImage(result.assets[0].uri);
     }
+  }
+
+  function handleRemovePromoImage() {
+    setPromoImage(null);
   }
 
   function toggleService(id: string) {
@@ -196,7 +203,7 @@ export default function TableScreen() {
         <View style={[styles.tableAccentBar, { backgroundColor: accentColor }]} />
 
         <View style={styles.tableHeader}>
-          <TouchableOpacity onPress={handlePickImage} style={styles.tableImageWrapper}>
+          <TouchableOpacity onPress={() => handlePickImage('header')} style={styles.tableImageWrapper}>
             {headerImage ? (
               <Image source={{ uri: headerImage }} style={styles.tableHeaderImage} />
             ) : (
@@ -274,10 +281,33 @@ export default function TableScreen() {
         </View>
 
         <View style={[styles.tableAccentBar, { backgroundColor: accentColor }]} />
+
+        {/* Imagem promocional opcional */}
+        <TouchableOpacity
+          style={styles.promoWrapper}
+          onPress={() => handlePickImage('promo')}
+          activeOpacity={0.8}
+        >
+          {promoImage ? (
+            <>
+              <Image source={{ uri: promoImage }} style={styles.promoImage} />
+              <TouchableOpacity style={styles.promoRemoveBtn} onPress={handleRemovePromoImage}>
+                <Ionicons name="close" size={16} color="#FFF" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={[styles.promoPlaceholder, { borderColor: accentColor + '60' }]}>
+              <Ionicons name="image-outline" size={22} color={accentColor} />
+              <Text style={[styles.promoPlaceholderText, { color: textColor + '90' }]}>
+                Adicionar foto do trabalho (opcional)
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.editHint}>
-        ✏️ Toque nos textos e na imagem do cartão acima para editar
+        ✏️ Toque nos textos, na foto do topo e na imagem promocional para personalizar
       </Text>
 
       {/* ═══ TEMAS ═══ */}
@@ -502,6 +532,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.md,
   },
+
+  // Imagem promocional
+  promoWrapper: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  promoImage: { width: '100%', height: 140, borderRadius: 14 },
+  promoRemoveBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoPlaceholder: {
+    height: 90,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  promoPlaceholderText: { fontSize: FONT_SIZES.xs, fontWeight: '600' },
 
   section: {
     backgroundColor: COLORS.white,
