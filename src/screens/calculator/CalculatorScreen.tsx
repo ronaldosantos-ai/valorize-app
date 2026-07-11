@@ -160,7 +160,7 @@ export default function CalculatorScreen() {
             </Text>
           </View>
           <View style={styles.priceItem}>
-            <Text style={styles.priceItemLabel}>Percebido</Text>
+            <Text style={styles.priceItemLabel}>Ideal</Text>
             <Text style={[styles.priceItemValue, { color: COLORS.warning }]}>
               {item.is_active ? formatCurrency(item.perceived_price) : 'R$ ••••'}
             </Text>
@@ -260,11 +260,11 @@ export default function CalculatorScreen() {
                     <Text style={styles.resultDesc}>Para não ter prejuízo</Text>
                   </View>
                   <View style={[styles.resultCard, { borderColor: COLORS.warning }]}>
-                    <Text style={styles.resultLabel}>🟡 Percebido</Text>
+                    <Text style={styles.resultLabel}>🟡 Ideal</Text>
                     <Text style={[styles.resultValue, { color: COLORS.warning }]}>
                       {formatCurrency(perceivedPrice!)}
                     </Text>
-                    <Text style={styles.resultDesc}>Com margem de lucro</Text>
+                    <Text style={styles.resultDesc}>Você lucra mais</Text>
                   </View>
                   <View style={[styles.resultCard, { borderColor: COLORS.success }]}>
                     <Text style={styles.resultLabel}>🟢 Blindado</Text>

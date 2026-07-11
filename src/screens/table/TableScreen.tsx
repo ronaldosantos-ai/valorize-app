@@ -47,7 +47,7 @@ type PriceType = 'min_price' | 'perceived_price' | 'shielded_price';
 
 const PRICE_OPTIONS: { key: PriceType; label: string; desc: string }[] = [
   { key: 'min_price', label: 'Preço Mínimo', desc: 'Sem prejuízo' },
-  { key: 'perceived_price', label: 'Preço Percebido', desc: 'Com margem' },
+  { key: 'perceived_price', label: 'Preço Ideal', desc: 'Você lucra mais' },
   { key: 'shielded_price', label: 'Preço Blindado 2026', desc: 'Com impostos' },
 ];
 

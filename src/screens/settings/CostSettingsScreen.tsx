@@ -139,7 +139,7 @@ export default function CostSettingsScreen() {
         { label: 'DAS MEI mensal (R$)', value: dasMei, set: setDasMei },
         { label: 'Taxa maquininha (%)', value: cardFee, set: setCardFee },
         { label: 'Taxa Pix (%)', value: pixFee, set: setPixFee },
-        { label: 'Ajuste Reforma 2026 (%)', value: taxReform, set: setTaxReform },
+        { label: 'Extra para novos impostos (%)', value: taxReform, set: setTaxReform },
       ],
     },
   ];

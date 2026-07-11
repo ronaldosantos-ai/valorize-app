@@ -192,7 +192,7 @@ export default function OnboardingScreen() {
               { label: 'DAS MEI mensal (R$)', value: dasMei, set: setDasMei },
               { label: 'Taxa maquininha (%)', value: cardFee, set: setCardFee },
               { label: 'Taxa Pix (%)', value: pixFee, set: setPixFee },
-              { label: 'Ajuste Reforma 2026 (%)', value: taxReform, set: setTaxReform },
+              { label: 'Extra para novos impostos (%)', value: taxReform, set: setTaxReform },
             ].map((f) => (
               <View style={styles.field} key={f.label}>
                 <Text style={styles.label}>{f.label}</Text>
