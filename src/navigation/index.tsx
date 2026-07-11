@@ -20,7 +20,6 @@ import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import CostSettingsScreen from '../screens/settings/CostSettingsScreen';
 import AccountMenuScreen from '../screens/account/AccountMenuScreen';
 import PaymentHistoryScreen from '../screens/account/PaymentHistoryScreen';
-import ClientsScreen from '../screens/clients/ClientsScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -93,24 +92,30 @@ export default function Navigation() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setIsAuthenticated(true);
-          try {
-            const [{ data: profile }, { data: config }] = await Promise.all([
-              supabase
-                .from('profiles')
-                .select('has_completed_onboarding')
-                .eq('id', session.user.id)
-                .single(),
-              supabase
-                .from('cost_configs')
-                .select('id')
-                .eq('user_id', session.user.id)
-                .maybeSingle(),
-            ]);
-            // Onboarding completo se o perfil diz que sim OU se já existem custos salvos
-            setHasOnboarding(Boolean(profile?.has_completed_onboarding || config));
-          } catch {
-            setHasOnboarding(false);
-          }
+
+          // Busca com order+limit (nunca quebra mesmo com registros duplicados)
+          const [profileResult, configResult] = await Promise.allSettled([
+            supabase
+              .from('profiles')
+              .select('has_completed_onboarding')
+              .eq('id', session.user.id)
+              .order('created_at', { ascending: false })
+              .limit(1),
+            supabase
+              .from('cost_configs')
+              .select('id')
+              .eq('user_id', session.user.id)
+              .order('updated_at', { ascending: false })
+              .limit(1),
+          ]);
+
+          const profileData =
+            profileResult.status === 'fulfilled' ? profileResult.value.data?.[0] : null;
+          const configData =
+            configResult.status === 'fulfilled' ? configResult.value.data?.[0] : null;
+
+          // Só considera "não completou" se realmente não encontrou nada em nenhuma das duas
+          setHasOnboarding(Boolean(profileData?.has_completed_onboarding || configData));
         }
       } catch (err) {
         console.error('Erro ao verificar sessão:', err);
@@ -129,10 +134,13 @@ export default function Navigation() {
             .from('profiles')
             .select('has_completed_onboarding')
             .eq('id', session.user.id)
-            .single();
-          setHasOnboarding(data?.has_completed_onboarding || false);
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (data && data.length > 0 && data[0].has_completed_onboarding) {
+            setHasOnboarding(true);
+          }
         } catch {
-          setHasOnboarding(false);
+          // Não força onboarding em caso de erro transitório
         }
       } else {
         setIsAuthenticated(false);
