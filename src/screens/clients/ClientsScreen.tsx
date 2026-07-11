@@ -16,7 +16,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../utils/pricing';
@@ -30,6 +30,7 @@ interface ClientSummary extends Client {
 }
 
 export default function ClientsScreen() {
+  const navigation = useNavigation<any>();
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -210,11 +211,16 @@ export default function ClientsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Minhas Clientes</Text>
-          <Text style={styles.subtitle}>
-            {clients.length} cliente{clients.length !== 1 ? 's' : ''} cadastrada{clients.length !== 1 ? 's' : ''}
-          </Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.title}>Minhas Clientes</Text>
+            <Text style={styles.subtitle}>
+              {clients.length} cliente{clients.length !== 1 ? 's' : ''} cadastrada{clients.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={openNewClient}>
           <Ionicons name="add" size={24} color={COLORS.white} />
@@ -392,6 +398,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
     paddingBottom: SPACING.sm,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
   },
   title: { fontSize: FONT_SIZES.xl, fontWeight: '800', color: COLORS.primary },
   subtitle: { fontSize: FONT_SIZES.sm, color: COLORS.gray500, marginTop: 2 },

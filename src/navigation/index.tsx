@@ -20,6 +20,7 @@ import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import CostSettingsScreen from '../screens/settings/CostSettingsScreen';
 import AccountMenuScreen from '../screens/account/AccountMenuScreen';
 import PaymentHistoryScreen from '../screens/account/PaymentHistoryScreen';
+import ClientsScreen from '../screens/clients/ClientsScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -28,13 +29,13 @@ export type RootStackParamList = {
   CostSettings: undefined;
   AccountMenu: undefined;
   PaymentHistory: undefined;
+  Clients: undefined;
 };
 
 export type TabParamList = {
   Home: undefined;
   Calculator: undefined;
   Register: undefined;
-  Clients: undefined;
   Table: undefined;
   Simulator: undefined;
 };
@@ -49,7 +50,6 @@ function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: COLORS.gold,
         tabBarInactiveTintColor: COLORS.gray500,
-        tabBarLabelStyle: { fontSize: 9.5 },
         tabBarStyle: {
           backgroundColor: COLORS.white,
           borderTopColor: COLORS.gray100,
@@ -61,18 +61,16 @@ function MainTabs() {
             Home: 'home-outline',
             Calculator: 'calculator-outline',
             Register: 'add-circle-outline',
-            Clients: 'people-outline',
             Table: 'grid-outline',
             Simulator: 'trending-up-outline',
           };
-          return <Ionicons name={icons[route.name]} size={size - 2} color={color} />;
+          return <Ionicons name={icons[route.name]} size={size} color={color} />;
         },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Início' }} />
       <Tab.Screen name="Calculator" component={CalculatorScreen} options={{ title: 'Preços' }} />
       <Tab.Screen name="Register" component={RegisterScreen} options={{ title: 'Registrar' }} />
-      <Tab.Screen name="Clients" component={ClientsScreen} options={{ title: 'Clientes' }} />
       <Tab.Screen name="Table" component={TableScreen} options={{ title: 'Tabela' }} />
       <Tab.Screen name="Simulator" component={SimulatorScreen} options={{ title: 'Simular' }} />
     </Tab.Navigator>
@@ -171,6 +169,7 @@ export default function Navigation() {
             <Stack.Screen name="CostSettings" component={CostSettingsScreen} />
             <Stack.Screen name="AccountMenu" component={AccountMenuScreen} />
             <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+            <Stack.Screen name="Clients" component={ClientsScreen} />
           </>
         )}
       </Stack.Navigator>

@@ -112,6 +112,12 @@ export default function AccountMenuScreen() {
       },
     },
     {
+      icon: 'people-outline' as const,
+      title: 'Minhas clientes',
+      desc: 'Contatos, aniversários e fidelidade',
+      onPress: () => navigation.navigate('Clients'),
+    },
+    {
       icon: 'settings-outline' as const,
       title: 'Configurações de custos',
       desc: 'Aluguel, salário, impostos e taxas',
