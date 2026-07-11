@@ -29,6 +29,12 @@
         "projectId": "f65ff930-f63b-4dfa-9aee-eade7e424f06"
       }
     },
+    "updates": {
+      "url": "https://u.expo.dev/f65ff930-f63b-4dfa-9aee-eade7e424f06"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "owner": "ronaldosantos-ais-team",
     "plugins": [
       "expo-asset",
