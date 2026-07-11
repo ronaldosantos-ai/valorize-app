@@ -7,22 +7,29 @@ export function useLoadUserData() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-      const { data: config } = await supabase
-        .from('cost_configs')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      if (config) setCostConfig(config);
+        // maybeSingle + order: nunca quebra mesmo se houver registros duplicados;
+        // usa sempre o mais recente
+        const { data: configs } = await supabase
+          .from('cost_configs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        if (configs && configs.length > 0) setCostConfig(configs[0]);
 
-      const { data: services } = await supabase
-        .from('services')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      if (services) setServices(services);
+        const { data: services } = await supabase
+          .from('services')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (services) setServices(services);
+      } catch (err) {
+        console.error('Erro ao carregar dados do usuário:', err);
+      }
     }
     load();
   }, []);

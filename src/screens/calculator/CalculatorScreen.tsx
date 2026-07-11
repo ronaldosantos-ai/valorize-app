@@ -246,6 +246,10 @@ export default function CalculatorScreen() {
                 />
               </View>
             </View>
+            <Text style={styles.supplyHint}>
+              💡 É só o quanto gasta desse serviço, não o preço do pote inteiro.{'\n'}
+              Ex: se um esmalte de R$ 20 rende 40 usos, o custo aqui é R$ 0,50.
+            </Text>
 
             {/* Resultado */}
             {minPrice !== null && (
@@ -365,6 +369,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   formTitle: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary, marginBottom: SPACING.md },
+  supplyHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray500,
+    lineHeight: 16,
+    marginTop: -SPACING.sm,
+    marginBottom: SPACING.md,
+  },
   field: { marginBottom: SPACING.md },
   row: { flexDirection: 'row', gap: SPACING.sm },
   label: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.gray700, marginBottom: SPACING.xs },

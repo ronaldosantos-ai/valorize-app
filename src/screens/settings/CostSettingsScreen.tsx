@@ -83,12 +83,20 @@ export default function CostSettingsScreen() {
         updated_at: new Date().toISOString(),
       };
 
+      // Busca se já existe um registro de custos para essa usuária,
+      // independente do que estiver carregado localmente (evita duplicatas)
+      const { data: existing } = await supabase
+        .from('cost_configs')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
       let saved;
-      if (costConfig?.id) {
+      if (existing?.id) {
         const { data, error } = await supabase
           .from('cost_configs')
           .update(values)
-          .eq('id', costConfig.id)
+          .eq('id', existing.id)
           .select()
           .single();
         if (error) throw error;
@@ -96,7 +104,7 @@ export default function CostSettingsScreen() {
       } else {
         const { data, error } = await supabase
           .from('cost_configs')
-          .upsert({ user_id: user.id, ...values }, { onConflict: 'user_id' })
+          .insert({ user_id: user.id, ...values })
           .select()
           .single();
         if (error) throw error;
