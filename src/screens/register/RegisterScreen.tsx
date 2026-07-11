@@ -300,9 +300,38 @@ export default function RegisterScreen() {
             />
           </View>
           {selectedService && (
-            <Text style={styles.priceHint}>
-              💡 Preço sugerido: {formatCurrency(selectedService.shielded_price)}
-            </Text>
+            <View style={styles.priceSuggestions}>
+              <Text style={styles.priceSuggestionsLabel}>Toque para preencher:</Text>
+              <View style={styles.priceSuggestionsRow}>
+                <TouchableOpacity
+                  style={[styles.priceSuggestionChip, { borderColor: COLORS.danger }]}
+                  onPress={() => setChargedPrice(selectedService.min_price.toFixed(2).replace('.', ','))}
+                >
+                  <Text style={[styles.priceSuggestionLabel, { color: COLORS.danger }]}>Mínimo</Text>
+                  <Text style={[styles.priceSuggestionValue, { color: COLORS.danger }]}>
+                    {formatCurrency(selectedService.min_price)}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.priceSuggestionChip, { borderColor: COLORS.warning }]}
+                  onPress={() => setChargedPrice(selectedService.perceived_price.toFixed(2).replace('.', ','))}
+                >
+                  <Text style={[styles.priceSuggestionLabel, { color: COLORS.warning }]}>Ideal</Text>
+                  <Text style={[styles.priceSuggestionValue, { color: COLORS.warning }]}>
+                    {formatCurrency(selectedService.perceived_price)}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.priceSuggestionChip, { borderColor: COLORS.success }]}
+                  onPress={() => setChargedPrice(selectedService.shielded_price.toFixed(2).replace('.', ','))}
+                >
+                  <Text style={[styles.priceSuggestionLabel, { color: COLORS.success }]}>Blindado</Text>
+                  <Text style={[styles.priceSuggestionValue, { color: COLORS.success }]}>
+                    {formatCurrency(selectedService.shielded_price)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
         </View>
 
@@ -500,6 +529,20 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   priceHint: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: SPACING.xs },
+
+  // Chips de preço sugerido
+  priceSuggestions: { marginTop: SPACING.sm },
+  priceSuggestionsLabel: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginBottom: SPACING.xs },
+  priceSuggestionsRow: { flexDirection: 'row', gap: SPACING.xs },
+  priceSuggestionChip: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: SPACING.xs,
+    alignItems: 'center',
+  },
+  priceSuggestionLabel: { fontSize: 10, fontWeight: '700' },
+  priceSuggestionValue: { fontSize: FONT_SIZES.sm, fontWeight: '800', marginTop: 1 },
 
   // Pagamento
   paymentRow: { flexDirection: 'row', gap: SPACING.sm },
