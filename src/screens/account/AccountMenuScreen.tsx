@@ -152,6 +152,7 @@ export default function AccountMenuScreen() {
         </TouchableOpacity>
         <Text style={styles.profileName}>{name || 'Profissional'}</Text>
         <Text style={styles.profileEmail}>{email}</Text>
+        <Text style={styles.emailNote}>E-mail de login (edição em breve)</Text>
         <Text style={styles.avatarHint}>Toque na foto para alterar</Text>
       </View>
 
@@ -279,6 +280,7 @@ const styles = StyleSheet.create({
   },
   profileName: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary },
   profileEmail: { fontSize: FONT_SIZES.sm, color: COLORS.gray500, marginTop: 2 },
+  emailNote: { fontSize: 11, color: COLORS.gray300, marginTop: 2, fontStyle: 'italic' },
   avatarHint: { fontSize: FONT_SIZES.xs, color: COLORS.gray300, marginTop: SPACING.xs },
 
   menuCard: {

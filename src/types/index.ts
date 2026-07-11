@@ -50,6 +50,7 @@ export interface Appointment {
   user_id: string;
   service_id: string;
   service_name: string;
+  client_name?: string;
   charged_price: number;
   net_profit: number;       // lucro líquido real
   payment_method: 'pix' | 'card' | 'cash';

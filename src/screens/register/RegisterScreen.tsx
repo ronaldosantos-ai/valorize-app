@@ -36,12 +36,34 @@ export default function RegisterScreen() {
 
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [customName, setCustomName] = useState('');
+  const [clientName, setClientName] = useState('');
   const [chargedPrice, setChargedPrice] = useState('');
   const [payment, setPayment] = useState<PaymentMethod>('pix');
   const [notes, setNotes] = useState('');
   const [netProfit, setNetProfit] = useState<number | null>(null);
 
-  useEffect(() => { loadServices(); }, []);
+  const [knownClients, setKnownClients] = useState<string[]>([]);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+
+  const filteredClients = knownClients.filter((name) =>
+    name.toLowerCase().includes(clientName.toLowerCase())
+  );
+
+  useEffect(() => { loadServices(); loadKnownClients(); }, []);
+
+  async function loadKnownClients() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from('appointments')
+      .select('client_name')
+      .eq('user_id', user.id)
+      .not('client_name', 'is', null);
+    if (data) {
+      const unique = Array.from(new Set(data.map((a) => a.client_name).filter(Boolean)));
+      setKnownClients(unique as string[]);
+    }
+  }
 
   async function loadServices() {
     try {
@@ -81,6 +103,8 @@ export default function RegisterScreen() {
   function handleClear() {
     setSelectedService(null);
     setCustomName('');
+    setClientName('');
+    setShowClientSuggestions(false);
     setChargedPrice('');
     setNotes('');
     setNetProfit(null);
@@ -108,6 +132,7 @@ export default function RegisterScreen() {
         user_id: user.id,
         service_id: selectedService?.id || null,
         service_name: name,
+        client_name: clientName.trim() || null,
         charged_price: price,
         net_profit: profit,
         payment_method: payment,
@@ -200,6 +225,39 @@ export default function RegisterScreen() {
               <Ionicons name="close-circle" size={16} color={COLORS.gray500} />
               <Text style={styles.clearBtnText}>Limpar seleção</Text>
             </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Nome da cliente */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Nome da cliente (opcional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Maria Silva"
+            placeholderTextColor={COLORS.gray300}
+            value={clientName}
+            onChangeText={(text) => {
+              setClientName(text);
+              setShowClientSuggestions(text.length > 0);
+            }}
+            autoCapitalize="words"
+          />
+          {showClientSuggestions && filteredClients.length > 0 && (
+            <View style={styles.suggestionsBox}>
+              {filteredClients.slice(0, 4).map((name) => (
+                <TouchableOpacity
+                  key={name}
+                  style={styles.suggestionItem}
+                  onPress={() => {
+                    setClientName(name);
+                    setShowClientSuggestions(false);
+                  }}
+                >
+                  <Ionicons name="person-outline" size={16} color={COLORS.gray500} />
+                  <Text style={styles.suggestionText}>{name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
         </View>
 
@@ -349,6 +407,26 @@ const styles = StyleSheet.create({
   serviceChipTextActive: { color: COLORS.primary },
   noServices: { backgroundColor: COLORS.gray100, borderRadius: 10, padding: SPACING.sm, marginBottom: SPACING.sm },
   noServicesText: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, lineHeight: 18 },
+
+  // Sugestões de clientes
+  suggestionsBox: {
+    marginTop: SPACING.xs,
+    borderRadius: 10,
+    backgroundColor: COLORS.offWhite,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+  },
+  suggestionText: { fontSize: FONT_SIZES.sm, color: COLORS.gray700 },
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SPACING.xs },
   clearBtnText: { fontSize: FONT_SIZES.xs, color: COLORS.gray500 },
 

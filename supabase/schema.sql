@@ -55,6 +55,7 @@ create table public.appointments (
   user_id uuid references public.profiles(id) on delete cascade not null,
   service_id uuid references public.services(id),
   service_name text not null,
+  client_name text,
   charged_price numeric(10,2) not null,
   net_profit numeric(10,2) not null,
   payment_method text check (payment_method in ('pix', 'card', 'cash')) not null,
