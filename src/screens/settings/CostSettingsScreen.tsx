@@ -85,11 +85,13 @@ export default function CostSettingsScreen() {
 
       // Busca se já existe um registro de custos para essa usuária,
       // independente do que estiver carregado localmente (evita duplicatas)
-      const { data: existing } = await supabase
+      const { data: existingList } = await supabase
         .from('cost_configs')
         .select('id')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      const existing = existingList?.[0];
 
       let saved;
       if (existing?.id) {
