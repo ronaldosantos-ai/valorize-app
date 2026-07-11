@@ -174,7 +174,6 @@ export default function TableScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: target === 'header' ? [1, 1] : [4, 3],
       quality: 0.7,
     });
     if (!result.canceled && result.assets[0]) {
