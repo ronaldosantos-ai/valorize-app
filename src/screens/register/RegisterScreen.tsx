@@ -42,11 +42,12 @@ export default function RegisterScreen() {
   const [notes, setNotes] = useState('');
   const [netProfit, setNetProfit] = useState<number | null>(null);
 
-  const [knownClients, setKnownClients] = useState<string[]>([]);
+  const [knownClients, setKnownClients] = useState<{ id: string; name: string }[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
 
-  const filteredClients = knownClients.filter((name) =>
-    name.toLowerCase().includes(clientName.toLowerCase())
+  const filteredClients = knownClients.filter((c) =>
+    c.name.toLowerCase().includes(clientName.toLowerCase())
   );
 
   useEffect(() => { loadServices(); loadKnownClients(); }, []);
@@ -55,14 +56,11 @@ export default function RegisterScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data } = await supabase
-      .from('appointments')
-      .select('client_name')
+      .from('clients')
+      .select('id, name')
       .eq('user_id', user.id)
-      .not('client_name', 'is', null);
-    if (data) {
-      const unique = Array.from(new Set(data.map((a) => a.client_name).filter(Boolean)));
-      setKnownClients(unique as string[]);
-    }
+      .order('name');
+    if (data) setKnownClients(data);
   }
 
   async function loadServices() {
@@ -104,6 +102,7 @@ export default function RegisterScreen() {
     setSelectedService(null);
     setCustomName('');
     setClientName('');
+    setSelectedClientId(null);
     setShowClientSuggestions(false);
     setChargedPrice('');
     setNotes('');
@@ -128,11 +127,26 @@ export default function RegisterScreen() {
       const supply = selectedService?.supply_cost || 0;
       const profit = calcNetProfit(price, supply, costConfig, duration, payment);
 
+      // Se digitou um nome de cliente novo (sem selecionar da lista), cadastra automaticamente
+      let clientId = selectedClientId;
+      const trimmedClientName = clientName.trim();
+      if (trimmedClientName && !clientId) {
+        const { data: newClient, error: clientError } = await supabase
+          .from('clients')
+          .insert({ user_id: user.id, name: trimmedClientName })
+          .select('id')
+          .single();
+        if (!clientError && newClient) {
+          clientId = newClient.id;
+        }
+      }
+
       const appointment = {
         user_id: user.id,
         service_id: selectedService?.id || null,
+        client_id: clientId || null,
         service_name: name,
-        client_name: clientName.trim() || null,
+        client_name: trimmedClientName || null,
         charged_price: price,
         net_profit: profit,
         payment_method: payment,
@@ -149,6 +163,9 @@ export default function RegisterScreen() {
       if (error) throw error;
 
       addAppointment({ ...data, created_at: data.created_at || new Date().toISOString() });
+      if (trimmedClientName && !selectedClientId) {
+        loadKnownClients(); // atualiza a lista para incluir a cliente recém-criada
+      }
       setNetProfit(profit);
       setShowSuccess(true);
     } catch (err: any) {
@@ -238,26 +255,33 @@ export default function RegisterScreen() {
             value={clientName}
             onChangeText={(text) => {
               setClientName(text);
+              setSelectedClientId(null);
               setShowClientSuggestions(text.length > 0);
             }}
             autoCapitalize="words"
           />
           {showClientSuggestions && filteredClients.length > 0 && (
             <View style={styles.suggestionsBox}>
-              {filteredClients.slice(0, 4).map((name) => (
+              {filteredClients.slice(0, 4).map((c) => (
                 <TouchableOpacity
-                  key={name}
+                  key={c.id}
                   style={styles.suggestionItem}
                   onPress={() => {
-                    setClientName(name);
+                    setClientName(c.name);
+                    setSelectedClientId(c.id);
                     setShowClientSuggestions(false);
                   }}
                 >
                   <Ionicons name="person-outline" size={16} color={COLORS.gray500} />
-                  <Text style={styles.suggestionText}>{name}</Text>
+                  <Text style={styles.suggestionText}>{c.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+          )}
+          {clientName.length > 0 && !selectedClientId && (
+            <Text style={styles.newClientHint}>
+              ✨ Nova cliente — será cadastrada automaticamente ao salvar
+            </Text>
           )}
         </View>
 
@@ -427,6 +451,12 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.gray100,
   },
   suggestionText: { fontSize: FONT_SIZES.sm, color: COLORS.gray700 },
+  newClientHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.success,
+    marginTop: SPACING.xs,
+    fontWeight: '600',
+  },
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SPACING.xs },
   clearBtnText: { fontSize: FONT_SIZES.xs, color: COLORS.gray500 },
 

@@ -30,6 +30,18 @@ export interface CostConfig {
   updated_at: string;
 }
 
+// ─── Cliente ───────────────────────────────────────────────
+export interface Client {
+  id: string;
+  user_id: string;
+  name: string;
+  phone?: string;
+  birthday?: string; // YYYY-MM-DD
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Serviço ───────────────────────────────────────────────
 export interface Service {
   id: string;
@@ -51,6 +63,7 @@ export interface Appointment {
   service_id: string;
   service_name: string;
   client_name?: string;
+  client_id?: string;
   charged_price: number;
   net_profit: number;       // lucro líquido real
   payment_method: 'pix' | 'card' | 'cash';

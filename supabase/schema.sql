@@ -49,11 +49,24 @@ create table public.services (
   created_at timestamptz default now()
 );
 
+-- ─── Clientes ──────────────────────────────────────────────
+create table public.clients (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  name text not null,
+  phone text,
+  birthday date,
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 -- ─── Atendimentos ──────────────────────────────────────────
 create table public.appointments (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.profiles(id) on delete cascade not null,
   service_id uuid references public.services(id),
+  client_id uuid references public.clients(id) on delete set null,
   service_name text not null,
   client_name text,
   charged_price numeric(10,2) not null,
@@ -68,6 +81,7 @@ create table public.appointments (
 alter table public.profiles enable row level security;
 alter table public.cost_configs enable row level security;
 alter table public.services enable row level security;
+alter table public.clients enable row level security;
 alter table public.appointments enable row level security;
 
 -- Policies: cada usuária acessa apenas seus próprios dados
@@ -78,6 +92,9 @@ create policy "Cost configs: own data" on public.cost_configs
   for all using (auth.uid() = user_id);
 
 create policy "Services: own data" on public.services
+  for all using (auth.uid() = user_id);
+
+create policy "Clients: own data" on public.clients
   for all using (auth.uid() = user_id);
 
 create policy "Appointments: own data" on public.appointments
