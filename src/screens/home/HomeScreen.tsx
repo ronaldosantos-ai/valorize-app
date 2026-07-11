@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   RefreshControl,
   ActivityIndicator,
   Image,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES, MEI_ANNUAL_LIMIT } from '../../constants';
+import { getTodayTip } from '../../constants/tips';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency, calcMeiProgress, calcSalaryProgress } from '../../utils/pricing';
 import { useAppStore } from '../../store';
@@ -37,6 +39,9 @@ export default function HomeScreen() {
   const [todayAppointments, setTodayAppointments] = useState(0);
   const [monthProfit, setMonthProfit] = useState(0);
   const [yearRevenue, setYearRevenue] = useState(0);
+  const [streakDays, setStreakDays] = useState(0);
+  const [isPersonalBest, setIsPersonalBest] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   async function loadData() {
     try {
@@ -89,6 +94,48 @@ export default function HomeScreen() {
       if (yearData) {
         setYearRevenue(yearData.reduce((sum, a) => sum + a.charged_price, 0));
       }
+
+      // Sequência de dias e recorde pessoal (últimos 60 dias)
+      const sinceStr = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentData } = await supabase
+        .from('appointments')
+        .select('net_profit, attended_at')
+        .eq('user_id', user.id)
+        .gte('attended_at', sinceStr);
+
+      if (recentData) {
+        // Agrupa lucro por dia (YYYY-MM-DD)
+        const profitByDay = new Map<string, number>();
+        recentData.forEach((a) => {
+          const day = a.attended_at.split('T')[0];
+          profitByDay.set(day, (profitByDay.get(day) || 0) + a.net_profit);
+        });
+
+        // Sequência: conta dias consecutivos com atendimento, terminando hoje ou ontem
+        let streak = 0;
+        for (let i = 0; i < 60; i++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          const key = d.toISOString().split('T')[0];
+          if (profitByDay.has(key)) {
+            streak++;
+          } else if (i === 0) {
+            continue; // hoje ainda pode não ter atendimento registrado
+          } else {
+            break;
+          }
+        }
+        setStreakDays(streak);
+
+        // Recorde pessoal: compara hoje com o melhor dia anterior
+        const todayKey = todayStr;
+        let bestPrevious = 0;
+        profitByDay.forEach((value, key) => {
+          if (key !== todayKey && value > bestPrevious) bestPrevious = value;
+        });
+        const todayTotal = profitByDay.get(todayKey) || 0;
+        setIsPersonalBest(todayTotal > 0 && todayTotal > bestPrevious);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -99,6 +146,16 @@ export default function HomeScreen() {
 
   useEffect(() => { loadData(); }, []);
 
+  // Pulso de destaque sempre que o lucro de hoje aumenta
+  useEffect(() => {
+    if (todayProfit > 0) {
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.12, duration: 180, useNativeDriver: true }),
+        Animated.spring(pulseAnim, { toValue: 1, friction: 3, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [todayProfit]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData();
@@ -108,8 +165,32 @@ export default function HomeScreen() {
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
   const desiredSalary = costConfig?.desired_salary || 3000;
+  const workDays = costConfig?.work_days_per_month || 22;
+  const dailyGoal = desiredSalary / workDays;
   const salaryProgress = calcSalaryProgress(monthProfit, desiredSalary);
   const meiProgress = calcMeiProgress(yearRevenue);
+  const todayTip = getTodayTip();
+
+  function getDailyMessage(): { text: string; emoji: string } {
+    if (todayAppointments === 0) {
+      return { text: 'Registre seu primeiro atendimento e veja a mágica acontecer!', emoji: '☀️' };
+    }
+    const percent = dailyGoal > 0 ? (todayProfit / dailyGoal) * 100 : 0;
+    if (isPersonalBest) {
+      return { text: 'Melhor dia até agora! Você está arrasando!', emoji: '🏆' };
+    }
+    if (percent >= 100) {
+      return { text: 'Meta de hoje batida! Tudo que vier agora é lucro extra!', emoji: '🔥' };
+    }
+    if (percent >= 70) {
+      return { text: 'Quase lá! Falta pouquinho para a meta de hoje.', emoji: '💪' };
+    }
+    if (percent >= 30) {
+      return { text: 'Bom progresso! Continue registrando seus atendimentos.', emoji: '✨' };
+    }
+    return { text: 'Todo atendimento registrado é um passo mais perto da meta.', emoji: '🌱' };
+  }
+  const dailyMessage = getDailyMessage();
 
   if (loading) {
     return (
@@ -147,11 +228,28 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Sequência de dias ativa */}
+      {streakDays >= 2 && (
+        <View style={styles.streakBanner}>
+          <Text style={styles.streakEmoji}>🔥</Text>
+          <Text style={styles.streakText}>
+            <Text style={styles.streakNumber}>{streakDays} dias</Text> seguidos registrando atendimentos!
+          </Text>
+        </View>
+      )}
+
       {/* Cards do dia */}
       <View style={styles.cardsRow}>
         <View style={[styles.card, styles.cardBlue]}>
+          {isPersonalBest && (
+            <View style={styles.bestBadge}>
+              <Text style={styles.bestBadgeText}>🏆 RECORDE</Text>
+            </View>
+          )}
           <Text style={styles.cardLabel}>Lucro hoje</Text>
-          <Text style={styles.cardValue}>{formatCurrency(todayProfit)}</Text>
+          <Animated.Text style={[styles.cardValue, { transform: [{ scale: pulseAnim }] }]}>
+            {formatCurrency(todayProfit)}
+          </Animated.Text>
           <Text style={styles.cardSub}>{todayAppointments} atendimento{todayAppointments !== 1 ? 's' : ''}</Text>
         </View>
         <View style={[styles.card, styles.cardGold]}>
@@ -159,6 +257,12 @@ export default function HomeScreen() {
           <Text style={styles.cardValueDark}>{formatCurrency(monthProfit)}</Text>
           <Text style={styles.cardSubDark}>acumulado</Text>
         </View>
+      </View>
+
+      {/* Mensagem motivacional do dia */}
+      <View style={styles.motivationBox}>
+        <Text style={styles.motivationEmoji}>{dailyMessage.emoji}</Text>
+        <Text style={styles.motivationText}>{dailyMessage.text}</Text>
       </View>
 
       {/* Progresso do salário */}
@@ -265,13 +369,11 @@ export default function HomeScreen() {
         ))}
       </View>
 
-      {/* Dica do dia — só aparece quando a configuração está completa */}
+      {/* Dica estratégica do dia — só aparece quando a configuração está completa */}
       {costConfig && services.length > 0 && (
         <View style={styles.tipBox}>
-          <Text style={styles.tipTitle}>💡 Dica do dia</Text>
-          <Text style={styles.tipText}>
-            Registre cada atendimento logo após concluir para ver seu lucro em tempo real!
-          </Text>
+          <Text style={styles.tipTitle}>{todayTip.emoji} {todayTip.title}</Text>
+          <Text style={styles.tipText}>{todayTip.text}</Text>
         </View>
       )}
 
@@ -344,11 +446,13 @@ const styles = StyleSheet.create({
   setupItemDesc: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 2 },
 
   // Cards do dia
-  cardsRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
+  cardsRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm },
   card: {
     flex: 1,
     borderRadius: 16,
     padding: SPACING.md,
+    position: 'relative',
+    overflow: 'hidden',
   },
   cardBlue: { backgroundColor: COLORS.primary },
   cardGold: { backgroundColor: COLORS.goldLight },
@@ -357,6 +461,52 @@ const styles = StyleSheet.create({
   cardSub: { fontSize: FONT_SIZES.xs, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   cardValueDark: { fontSize: FONT_SIZES.xl, fontWeight: '800', color: COLORS.primary, marginTop: 4 },
   cardSubDark: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 2 },
+
+  // Sequência de dias (streak)
+  streakBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: '#FFB74D50',
+  },
+  streakEmoji: { fontSize: 18 },
+  streakText: { fontSize: FONT_SIZES.xs, color: COLORS.gray700, flex: 1 },
+  streakNumber: { fontWeight: '800', color: '#E65100' },
+
+  // Badge de recorde pessoal
+  bestBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: COLORS.gold,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  bestBadgeText: { fontSize: 9, fontWeight: '800', color: COLORS.primaryDark },
+
+  // Mensagem motivacional
+  motivationBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  motivationEmoji: { fontSize: 24 },
+  motivationText: { flex: 1, fontSize: FONT_SIZES.sm, color: COLORS.gray700, fontWeight: '600', lineHeight: 20 },
 
   // Seções
   section: {
