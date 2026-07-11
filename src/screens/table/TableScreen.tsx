@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,20 @@ import {
   Share,
   Switch,
   Image,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as Sharing from 'expo-sharing';
+import ViewShot from 'react-native-view-shot';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { useAppStore } from '../../store';
 import { formatCurrency } from '../../utils/pricing';
 
 const SETTINGS_KEY = '@valorize/table_settings';
+const TEMPLATES_KEY = '@valorize/table_templates';
 
 // ─── Temas completos (estilo, não só cor) ──────────────────
 const THEMES = [
@@ -45,6 +50,19 @@ const ACCENT_COLORS = [
 
 type PriceType = 'min_price' | 'perceived_price' | 'shielded_price';
 
+interface TableTemplate {
+  id: string;
+  name: string;
+  salonName: string;
+  subtitle: string;
+  footerText: string;
+  headerImage: string | null;
+  promoImage: string | null;
+  bgColor: string;
+  accentColor: string;
+  headerEmoji: string;
+}
+
 const PRICE_OPTIONS: { key: PriceType; label: string; desc: string }[] = [
   { key: 'min_price', label: 'Preço Mínimo', desc: 'Sem prejuízo' },
   { key: 'perceived_price', label: 'Preço Ideal', desc: 'Você lucra mais' },
@@ -63,6 +81,13 @@ function textColorFor(bg: string): string {
 
 export default function TableScreen() {
   const { services, costConfig } = useAppStore();
+  const viewShotRef = useRef<ViewShot>(null);
+  const [sharing, setSharing] = useState(false);
+
+  // Templates salvos
+  const [templates, setTemplates] = useState<TableTemplate[]>([]);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
 
   // Personalização
   const [salonName, setSalonName] = useState('Meu Salão');
@@ -116,6 +141,15 @@ export default function TableScreen() {
     }));
   }, [salonName, subtitle, footerText, headerImage, promoImage, bgColor, accentColor, headerEmoji, settingsLoaded]);
 
+  // Carrega os modelos (templates) salvos pela usuária
+  useEffect(() => {
+    AsyncStorage.getItem(TEMPLATES_KEY).then((stored) => {
+      if (stored) {
+        try { setTemplates(JSON.parse(stored)); } catch {}
+      }
+    });
+  }, []);
+
   // Preço exibido: com taxa embutida quando o toggle está ligado
   function displayPrice(service: any): number {
     const base = service[priceType] as number;
@@ -160,22 +194,75 @@ export default function TableScreen() {
   }
 
   async function handleShare() {
+    setSharing(true);
     try {
-      const lines = [
-        `${headerEmoji} ${salonName.toUpperCase()}`,
-        subtitle,
-        ``,
-        ...displayServices.map(s =>
-          `• ${s.name} .............. ${formatCurrency(displayPrice(s))}`
-        ),
-        ``,
-        showCardFee ? `💳 Taxa de maquininha já inclusa nos preços` : '',
-        footerText,
-      ].filter(Boolean);
-      await Share.share({ message: lines.join('\n'), title: `Tabela — ${salonName}` });
-    } catch {
-      Alert.alert('Erro', 'Não foi possível compartilhar.');
+      // Captura o cartão exatamente como está na tela (cores, fotos, layout)
+      const uri = await viewShotRef.current?.capture?.();
+
+      if (uri && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: `Tabela — ${salonName}`,
+        });
+      } else {
+        // Fallback: compartilha só o texto se a captura de imagem não funcionar
+        const lines = [
+          `${headerEmoji} ${salonName.toUpperCase()}`,
+          subtitle,
+          ``,
+          ...displayServices.map(s =>
+            `• ${s.name} .............. ${formatCurrency(displayPrice(s))}`
+          ),
+          ``,
+          showCardFee ? `💳 Taxa de maquininha já inclusa nos preços` : '',
+          footerText,
+        ].filter(Boolean);
+        await Share.share({ message: lines.join('\n'), title: `Tabela — ${salonName}` });
+      }
+    } catch (err) {
+      Alert.alert('Erro', 'Não foi possível compartilhar a tabela.');
+    } finally {
+      setSharing(false);
     }
+  }
+
+  function getCurrentConfig() {
+    return { salonName, subtitle, footerText, headerImage, promoImage, bgColor, accentColor, headerEmoji };
+  }
+
+  async function handleSaveTemplate() {
+    if (!templateName.trim()) {
+      Alert.alert('Atenção', 'Dê um nome para o modelo (ex: "Promoção", "Padrão").');
+      return;
+    }
+    const newTemplate: TableTemplate = {
+      id: Date.now().toString(),
+      name: templateName.trim(),
+      ...getCurrentConfig(),
+    };
+    const updated = [...templates, newTemplate];
+    setTemplates(updated);
+    await AsyncStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+    setShowSaveTemplate(false);
+    setTemplateName('');
+    Alert.alert('✅ Modelo salvo!', `"${newTemplate.name}" está disponível para usar quando quiser.`);
+  }
+
+  function applyTemplate(t: TableTemplate) {
+    setSalonName(t.salonName);
+    setSubtitle(t.subtitle);
+    setFooterText(t.footerText);
+    setHeaderImage(t.headerImage);
+    setPromoImage(t.promoImage);
+    setBgColor(t.bgColor);
+    setAccentColor(t.accentColor);
+    setHeaderEmoji(t.headerEmoji);
+  }
+
+  async function handleDeleteTemplate(id: string) {
+    const updated = templates.filter(t => t.id !== id);
+    setTemplates(updated);
+    await AsyncStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
   }
 
   if (activeServices.length === 0) {
@@ -199,6 +286,7 @@ export default function TableScreen() {
       </View>
 
       {/* ═══ PREVIEW DO CARTÃO ═══ */}
+      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
       <View style={[styles.tablePreview, { backgroundColor: bgColor }]}>
         <View style={[styles.tableAccentBar, { backgroundColor: accentColor }]} />
 
@@ -305,10 +393,48 @@ export default function TableScreen() {
           )}
         </TouchableOpacity>
       </View>
+      </ViewShot>
 
       <Text style={styles.editHint}>
         ✏️ Toque nos textos, na foto do topo e na imagem promocional para personalizar
       </Text>
+
+      {/* ═══ MEUS MODELOS (templates salvos) ═══ */}
+      <View style={styles.section}>
+        <View style={styles.templatesHeader}>
+          <Text style={styles.sectionTitle}>💾 Meus modelos</Text>
+          <TouchableOpacity style={styles.saveTemplateBtn} onPress={() => setShowSaveTemplate(true)}>
+            <Ionicons name="add" size={16} color={COLORS.primary} />
+            <Text style={styles.saveTemplateBtnText}>Salvar atual</Text>
+          </TouchableOpacity>
+        </View>
+        {templates.length === 0 ? (
+          <Text style={styles.noTemplatesText}>
+            Personalize o cartão acima e toque em "Salvar atual" para reaproveitar esse visual depois.
+          </Text>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {templates.map((t) => (
+              <TouchableOpacity
+                key={t.id}
+                style={[styles.templateCard, { backgroundColor: t.bgColor }]}
+                onPress={() => applyTemplate(t)}
+                onLongPress={() =>
+                  Alert.alert('Remover modelo', `Excluir "${t.name}"?`, [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Excluir', style: 'destructive', onPress: () => handleDeleteTemplate(t.id) },
+                  ])
+                }
+              >
+                <Text style={{ fontSize: 18 }}>{t.headerEmoji}</Text>
+                <Text style={{ color: t.accentColor, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>
+                  {t.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
 
       {/* ═══ TEMAS ═══ */}
       <View style={styles.section}>
@@ -433,14 +559,51 @@ export default function TableScreen() {
       </View>
 
       {/* ═══ COMPARTILHAR ═══ */}
-      <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
-        <Ionicons name="share-social-outline" size={22} color={COLORS.white} />
-        <Text style={styles.shareBtnText}>Compartilhar tabela</Text>
+      <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
+        {sharing ? (
+          <ActivityIndicator color={COLORS.white} />
+        ) : (
+          <>
+            <Ionicons name="share-social-outline" size={22} color={COLORS.white} />
+            <Text style={styles.shareBtnText}>Compartilhar tabela</Text>
+          </>
+        )}
       </TouchableOpacity>
 
       <Text style={styles.shareHint}>
-        💡 Compartilhe direto no WhatsApp, Instagram ou salve como texto
+        💡 Envia o cartão como imagem, já com suas cores e fotos
       </Text>
+
+      {/* Modal: salvar modelo */}
+      <Modal visible={showSaveTemplate} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Salvar como modelo</Text>
+            <Text style={styles.modalDesc}>
+              Dê um nome para reaproveitar essas cores, fotos e textos depois.
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              value={templateName}
+              onChangeText={setTemplateName}
+              placeholder='Ex: "Promoção", "Padrão"'
+              placeholderTextColor={COLORS.gray300}
+              autoFocus
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => { setShowSaveTemplate(false); setTemplateName(''); }}
+              >
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveTemplate}>
+                <Text style={styles.modalSaveText}>Salvar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
     </ScrollView>
   );
@@ -654,4 +817,73 @@ const styles = StyleSheet.create({
   },
   shareBtnText: { color: COLORS.white, fontSize: FONT_SIZES.md, fontWeight: '800' },
   shareHint: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, textAlign: 'center' },
+
+  // Meus modelos
+  templatesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+  saveTemplateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary + '10',
+  },
+  saveTemplateBtnText: { fontSize: FONT_SIZES.xs, fontWeight: '700', color: COLORS.primary },
+  noTemplatesText: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, lineHeight: 18 },
+  templateCard: {
+    width: 80,
+    height: 64,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.xs,
+    gap: 4,
+    padding: 4,
+  },
+
+  // Modal salvar template
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+  },
+  modalCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: SPACING.lg,
+    width: '100%',
+  },
+  modalTitle: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary, marginBottom: SPACING.xs },
+  modalDesc: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginBottom: SPACING.md },
+  modalInput: {
+    borderWidth: 1.5,
+    borderColor: COLORS.gray300,
+    borderRadius: 12,
+    padding: SPACING.md,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.black,
+    backgroundColor: COLORS.offWhite,
+    marginBottom: SPACING.md,
+  },
+  modalBtns: { flexDirection: 'row', gap: SPACING.sm },
+  modalCancelBtn: {
+    flex: 0.4,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray300,
+    borderRadius: 12,
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  modalCancelText: { color: COLORS.gray500, fontWeight: '600' },
+  modalSaveBtn: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  modalSaveText: { color: COLORS.white, fontWeight: '700' },
 });
