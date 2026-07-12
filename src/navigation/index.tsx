@@ -20,6 +20,7 @@ import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import CostSettingsScreen from '../screens/settings/CostSettingsScreen';
 import AccountMenuScreen from '../screens/account/AccountMenuScreen';
 import PaymentHistoryScreen from '../screens/account/PaymentHistoryScreen';
+import UsageHistoryScreen from '../screens/account/UsageHistoryScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -28,6 +29,7 @@ export type RootStackParamList = {
   CostSettings: undefined;
   AccountMenu: undefined;
   PaymentHistory: undefined;
+  UsageHistory: undefined;
   Clients: undefined;
 };
 
@@ -177,6 +179,7 @@ export default function Navigation() {
             <Stack.Screen name="CostSettings" component={CostSettingsScreen} />
             <Stack.Screen name="AccountMenu" component={AccountMenuScreen} />
             <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+            <Stack.Screen name="UsageHistory" component={UsageHistoryScreen} />
             <Stack.Screen name="Clients" component={ClientsScreen} />
           </>
         )}

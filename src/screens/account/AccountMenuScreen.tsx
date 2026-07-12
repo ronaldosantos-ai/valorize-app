@@ -138,6 +138,12 @@ export default function AccountMenuScreen() {
       onPress: () => navigation.navigate('CostSettings'),
     },
     {
+      icon: 'time-outline' as const,
+      title: 'Histórico de uso',
+      desc: 'Todos os atendimentos registrados',
+      onPress: () => navigation.navigate('UsageHistory'),
+    },
+    {
       icon: 'card-outline' as const,
       title: 'Histórico de pagamentos',
       desc: 'Assinatura e cobranças do app',

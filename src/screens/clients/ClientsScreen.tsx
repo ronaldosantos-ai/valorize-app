@@ -112,6 +112,7 @@ export default function ClientsScreen() {
   }
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempPickerDate, setTempPickerDate] = useState(new Date(2000, 0, 1));
 
   // Converte AAAA-MM-DD (banco) <-> DD/MM/AAAA (exibição)
   function isoToBr(iso?: string | null): string {
@@ -135,14 +136,17 @@ export default function ClientsScreen() {
     else if (clean.length > 2) masked = `${clean.slice(0, 2)}/${clean.slice(2)}`;
     return masked;
   }
-  function handleDatePicked(event: any, date?: Date) {
-    setShowDatePicker(Platform.OS === 'ios'); // no Android o picker já fecha sozinho
-    if (date) {
-      const d = String(date.getDate()).padStart(2, '0');
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const y = date.getFullYear();
-      setFormBirthday(`${d}/${m}/${y}`);
-    }
+  function openDatePicker() {
+    const iso = brToIso(formBirthday);
+    setTempPickerDate(iso ? new Date(iso + 'T12:00:00') : new Date(2000, 0, 1));
+    setShowDatePicker(true);
+  }
+  function handleConfirmDate() {
+    const d = String(tempPickerDate.getDate()).padStart(2, '0');
+    const m = String(tempPickerDate.getMonth() + 1).padStart(2, '0');
+    const y = tempPickerDate.getFullYear();
+    setFormBirthday(`${d}/${m}/${y}`);
+    setShowDatePicker(false);
   }
 
   function openNewClient() {
@@ -394,21 +398,44 @@ export default function ClientsScreen() {
                   />
                   <TouchableOpacity
                     style={styles.calendarBtn}
-                    onPress={() => setShowDatePicker(true)}
+                    onPress={openDatePicker}
                   >
                     <Ionicons name="calendar-outline" size={22} color={COLORS.primary} />
                   </TouchableOpacity>
                 </View>
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={brToIso(formBirthday) ? new Date(brToIso(formBirthday) + 'T12:00:00') : new Date(2000, 0, 1)}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    maximumDate={new Date()}
-                    onChange={handleDatePicked}
-                  />
-                )}
               </View>
+
+              <Modal visible={showDatePicker} transparent animationType="slide">
+                <View style={styles.datePickerOverlay}>
+                  <View style={styles.datePickerCard}>
+                    <Text style={styles.datePickerTitle}>Selecione o aniversário</Text>
+                    <DateTimePicker
+                      value={tempPickerDate}
+                      mode="date"
+                      display="spinner"
+                      maximumDate={new Date()}
+                      minimumDate={new Date(1920, 0, 1)}
+                      onChange={(event, date) => date && setTempPickerDate(date)}
+                      locale="pt-BR"
+                      style={styles.datePickerWidget}
+                    />
+                    <View style={styles.datePickerBtns}>
+                      <TouchableOpacity
+                        style={styles.datePickerCancelBtn}
+                        onPress={() => setShowDatePicker(false)}
+                      >
+                        <Text style={styles.datePickerCancelText}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.datePickerConfirmBtn}
+                        onPress={handleConfirmDate}
+                      >
+                        <Text style={styles.datePickerConfirmText}>Confirmar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </Modal>
 
               <View style={styles.field}>
                 <Text style={styles.label}>Observações</Text>
@@ -577,6 +604,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // Modal de seleção de data (roleta)
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  datePickerCard: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+  datePickerTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '800',
+    color: COLORS.primary,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  datePickerWidget: { alignSelf: 'center', height: 180 },
+  datePickerBtns: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
+  datePickerCancelBtn: {
+    flex: 0.4,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray300,
+    borderRadius: 12,
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  datePickerCancelText: { color: COLORS.gray500, fontWeight: '600' },
+  datePickerConfirmBtn: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  datePickerConfirmText: { color: COLORS.white, fontWeight: '700' },
 
   modalBtns: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
   cancelBtn: {
