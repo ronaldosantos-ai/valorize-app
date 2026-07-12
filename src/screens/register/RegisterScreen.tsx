@@ -399,9 +399,21 @@ export default function RegisterScreen() {
       </ScrollView>
 
       {/* Modal de sucesso */}
-      <Modal visible={showSuccess} transparent animationType="fade">
+      <Modal
+        visible={showSuccess}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSuccess(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setShowSuccess(false)}
+            >
+              <Ionicons name="close" size={22} color={COLORS.gray500} />
+            </TouchableOpacity>
+
             <Text style={styles.modalEmoji}>🎉</Text>
             <Text style={styles.modalTitle}>Atendimento registrado!</Text>
             <Text style={styles.modalProfit}>
@@ -414,6 +426,12 @@ export default function RegisterScreen() {
               onPress={() => { setShowSuccess(false); handleClear(); }}
             >
               <Text style={styles.modalBtnText}>Registrar outro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalSecondaryBtn}
+              onPress={() => { setShowSuccess(false); handleClear(); }}
+            >
+              <Text style={styles.modalSecondaryBtnText}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -597,6 +615,19 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     alignItems: 'center',
     width: '100%',
+    position: 'relative',
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: SPACING.md,
+    right: SPACING.md,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   modalEmoji: { fontSize: 64, marginBottom: SPACING.sm },
   modalTitle: { fontSize: FONT_SIZES.xl, fontWeight: '800', color: COLORS.primary, marginBottom: SPACING.md },
@@ -610,4 +641,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
   },
   modalBtnText: { color: COLORS.white, fontSize: FONT_SIZES.md, fontWeight: '700' },
+  modalSecondaryBtn: { marginTop: SPACING.sm, paddingVertical: SPACING.xs },
+  modalSecondaryBtnText: { color: COLORS.gray500, fontSize: FONT_SIZES.sm, fontWeight: '600' },
 });

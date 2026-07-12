@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../utils/pricing';
@@ -110,6 +111,40 @@ export default function ClientsScreen() {
     loadClients();
   }
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Converte AAAA-MM-DD (banco) <-> DD/MM/AAAA (exibição)
+  function isoToBr(iso?: string | null): string {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    if (!y || !m || !d) return '';
+    return `${d}/${m}/${y}`;
+  }
+  function brToIso(br: string): string | null {
+    const clean = br.replace(/\D/g, '');
+    if (clean.length !== 8) return null;
+    const d = clean.slice(0, 2);
+    const m = clean.slice(2, 4);
+    const y = clean.slice(4, 8);
+    return `${y}-${m}-${d}`;
+  }
+  function maskBirthdayInput(text: string): string {
+    const clean = text.replace(/\D/g, '').slice(0, 8);
+    let masked = clean;
+    if (clean.length > 4) masked = `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
+    else if (clean.length > 2) masked = `${clean.slice(0, 2)}/${clean.slice(2)}`;
+    return masked;
+  }
+  function handleDatePicked(event: any, date?: Date) {
+    setShowDatePicker(Platform.OS === 'ios'); // no Android o picker já fecha sozinho
+    if (date) {
+      const d = String(date.getDate()).padStart(2, '0');
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const y = date.getFullYear();
+      setFormBirthday(`${d}/${m}/${y}`);
+    }
+  }
+
   function openNewClient() {
     setEditingClient(null);
     setFormName('');
@@ -123,7 +158,7 @@ export default function ClientsScreen() {
     setEditingClient(client);
     setFormName(client.name);
     setFormPhone(client.phone || '');
-    setFormBirthday(client.birthday || '');
+    setFormBirthday(isoToBr(client.birthday));
     setFormNotes(client.notes || '');
     setShowModal(true);
   }
@@ -131,6 +166,10 @@ export default function ClientsScreen() {
   async function handleSaveClient() {
     if (!formName.trim()) {
       Alert.alert('Atenção', 'Informe o nome da cliente.');
+      return;
+    }
+    if (formBirthday.trim() && !brToIso(formBirthday)) {
+      Alert.alert('Atenção', 'Data de aniversário incompleta. Use o formato DD/MM/AAAA.');
       return;
     }
     setSaving(true);
@@ -141,7 +180,7 @@ export default function ClientsScreen() {
       const values = {
         name: formName.trim(),
         phone: formPhone.trim() || null,
-        birthday: formBirthday.trim() || null,
+        birthday: brToIso(formBirthday),
         notes: formNotes.trim() || null,
         updated_at: new Date().toISOString(),
       };
@@ -343,13 +382,32 @@ export default function ClientsScreen() {
 
               <View style={styles.field}>
                 <Text style={styles.label}>Aniversário</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formBirthday}
-                  onChangeText={setFormBirthday}
-                  placeholder="AAAA-MM-DD (ex: 1990-05-20)"
-                  placeholderTextColor={COLORS.gray300}
-                />
+                <View style={styles.birthdayRow}>
+                  <TextInput
+                    style={[styles.input, styles.birthdayInput]}
+                    value={formBirthday}
+                    onChangeText={(text) => setFormBirthday(maskBirthdayInput(text))}
+                    placeholder="DD/MM/AAAA"
+                    placeholderTextColor={COLORS.gray300}
+                    keyboardType="number-pad"
+                    maxLength={10}
+                  />
+                  <TouchableOpacity
+                    style={styles.calendarBtn}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Ionicons name="calendar-outline" size={22} color={COLORS.primary} />
+                  </TouchableOpacity>
+                </View>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={brToIso(formBirthday) ? new Date(brToIso(formBirthday) + 'T12:00:00') : new Date(2000, 0, 1)}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    maximumDate={new Date()}
+                    onChange={handleDatePicked}
+                  />
+                )}
               </View>
 
               <View style={styles.field}>
@@ -509,6 +567,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.offWhite,
   },
   notesInput: { height: 80, textAlignVertical: 'top' },
+  birthdayRow: { flexDirection: 'row', gap: SPACING.sm, alignItems: 'center' },
+  birthdayInput: { flex: 1 },
+  calendarBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   modalBtns: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
   cancelBtn: {

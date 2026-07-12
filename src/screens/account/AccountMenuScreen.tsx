@@ -27,6 +27,7 @@ export default function AccountMenuScreen() {
   const [email, setEmail] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -69,16 +70,29 @@ export default function AccountMenuScreen() {
 
   async function handleSaveName() {
     if (!newName.trim()) return;
+    const emailChanged = newEmail.trim() && newEmail.trim() !== email;
+
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Não autenticada.');
+
       const { error } = await supabase
         .from('profiles')
         .update({ name: newName.trim() })
         .eq('id', user.id);
       if (error) throw error;
       setName(newName.trim());
+
+      if (emailChanged) {
+        const { error: emailError } = await supabase.auth.updateUser({ email: newEmail.trim() });
+        if (emailError) throw emailError;
+        Alert.alert(
+          '📧 Confirme seu novo e-mail',
+          `Enviamos um link de confirmação para ${newEmail.trim()}. Seu e-mail de login só muda depois que você clicar nesse link.`
+        );
+      }
+
       setEditingName(false);
     } catch (err: any) {
       Alert.alert('Erro', err.message || 'Não foi possível salvar.');
@@ -104,9 +118,10 @@ export default function AccountMenuScreen() {
     {
       icon: 'person-outline' as const,
       title: 'Dados pessoais',
-      desc: 'Nome e informações da conta',
+      desc: 'Nome e e-mail de login',
       onPress: () => {
         setNewName(name);
+        setNewEmail(email);
         setEditingName(true);
       },
     },
@@ -157,7 +172,6 @@ export default function AccountMenuScreen() {
         </TouchableOpacity>
         <Text style={styles.profileName}>{name || 'Profissional'}</Text>
         <Text style={styles.profileEmail}>{email}</Text>
-        <Text style={styles.emailNote}>E-mail de login (edição em breve)</Text>
         <Text style={styles.avatarHint}>Toque na foto para alterar</Text>
       </View>
 
@@ -187,11 +201,13 @@ export default function AccountMenuScreen() {
         <Text style={styles.logoutText}>Sair da conta</Text>
       </TouchableOpacity>
 
-      {/* Modal edição de nome */}
+      {/* Modal edição de dados pessoais */}
       <Modal visible={editingName} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Editar nome</Text>
+            <Text style={styles.modalTitle}>Dados pessoais</Text>
+
+            <Text style={styles.modalFieldLabel}>Nome</Text>
             <TextInput
               style={styles.modalInput}
               value={newName}
@@ -200,6 +216,21 @@ export default function AccountMenuScreen() {
               placeholderTextColor={COLORS.gray300}
               autoFocus
             />
+
+            <Text style={styles.modalFieldLabel}>E-mail</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newEmail}
+              onChangeText={setNewEmail}
+              placeholder="seu@email.com"
+              placeholderTextColor={COLORS.gray300}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <Text style={styles.modalHint}>
+              💡 Ao mudar o e-mail, você recebe um link de confirmação — o login só muda depois de confirmar.
+            </Text>
+
             <View style={styles.modalBtns}>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
@@ -343,6 +374,14 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   modalTitle: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary, marginBottom: SPACING.md },
+  modalFieldLabel: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.gray700, marginBottom: SPACING.xs },
+  modalHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray500,
+    marginTop: -SPACING.xs,
+    marginBottom: SPACING.md,
+    lineHeight: 16,
+  },
   modalInput: {
     borderWidth: 1.5,
     borderColor: COLORS.gray300,
