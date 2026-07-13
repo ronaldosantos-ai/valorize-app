@@ -11,9 +11,12 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { useAppStore } from '../../store';
+import InfoTip from '../../components/InfoTip';
+import { ExtraCostItem } from '../../types';
 
 const STEPS = ['Boas-vindas', 'Custos Fixos', 'Trabalho', 'Fiscal'];
 
@@ -31,6 +34,9 @@ export default function OnboardingScreen() {
   const [internet, setInternet] = useState('');
   const [otherFixed, setOtherFixed] = useState('');
   const [equipmentValue, setEquipmentValue] = useState('');
+  const [extraCosts, setExtraCosts] = useState<ExtraCostItem[]>([]);
+  const [newExtraLabel, setNewExtraLabel] = useState('');
+  const [newExtraValue, setNewExtraValue] = useState('');
 
   // Step 2 — Trabalho
   const [desiredSalary, setDesiredSalary] = useState('');
@@ -38,13 +44,32 @@ export default function OnboardingScreen() {
   const [workHours, setWorkHours] = useState('8');
 
   // Step 3 — Fiscal
-  const [dasMei, setDasMei] = useState('75.90');
+  const [dasMei, setDasMei] = useState('86.05');
   const [cardFee, setCardFee] = useState('2.50');
-  const [pixFee, setPixFee] = useState('0.99');
-  const [taxReform, setTaxReform] = useState('3.50');
+  const [taxReform, setTaxReform] = useState('0');
 
   function toNum(val: string) {
     return parseFloat(val.replace(',', '.')) || 0;
+  }
+
+  const extraCostsTotal = extraCosts.reduce((sum, item) => sum + item.value, 0);
+
+  function handleAddExtraCost() {
+    if (!newExtraLabel.trim() || !toNum(newExtraValue)) {
+      Alert.alert('Atenção', 'Informe o nome e o valor do item extra.');
+      return;
+    }
+    setExtraCosts([...extraCosts, {
+      id: Date.now().toString(),
+      label: newExtraLabel.trim(),
+      value: toNum(newExtraValue),
+    }]);
+    setNewExtraLabel('');
+    setNewExtraValue('');
+  }
+
+  function handleRemoveExtraCost(id: string) {
+    setExtraCosts(extraCosts.filter(item => item.id !== id));
   }
 
   async function handleFinish() {
@@ -73,6 +98,7 @@ export default function OnboardingScreen() {
         electricity: toNum(electricity),
         internet: toNum(internet),
         other_fixed: toNum(otherFixed),
+        extra_costs: extraCosts,
         equipment_value: toNum(equipmentValue),
         equipment_lifespan_months: 24,
         desired_salary: toNum(desiredSalary),
@@ -80,7 +106,7 @@ export default function OnboardingScreen() {
         work_hours_per_day: toNum(workHours),
         das_mei_monthly: toNum(dasMei),
         card_fee_percent: toNum(cardFee),
-        pix_fee_percent: toNum(pixFee),
+        pix_fee_percent: 0,
         tax_reform_adjustment: toNum(taxReform),
       };
 
@@ -169,7 +195,6 @@ export default function OnboardingScreen() {
               { label: 'Luz (R$)', value: electricity, set: setElectricity, placeholder: '0,00' },
               { label: 'Internet (R$)', value: internet, set: setInternet, placeholder: '0,00' },
               { label: 'Outros fixos (R$)', value: otherFixed, set: setOtherFixed, placeholder: '0,00' },
-              { label: 'Valor dos equipamentos (R$)', value: equipmentValue, set: setEquipmentValue, placeholder: 'Ex: 2000,00' },
             ].map((f) => (
               <View style={styles.field} key={f.label}>
                 <Text style={styles.label}>{f.label}</Text>
@@ -184,12 +209,75 @@ export default function OnboardingScreen() {
               </View>
             ))}
 
+            {/* Valor dos equipamentos com dica */}
+            <View style={styles.field}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Valor dos equipamentos (R$)</Text>
+                <InfoTip
+                  title="Valor dos equipamentos"
+                  description="Some o valor que você gastou (ou gastaria para repor) alicates, lixas elétricas, cabines, luminárias e outros itens duráveis do seu trabalho. O app divide esse valor aos poucos ao longo de 24 meses, sem pesar tudo de uma vez no seu preço."
+                />
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: 2000,00"
+                placeholderTextColor={COLORS.gray300}
+                value={equipmentValue}
+                onChangeText={setEquipmentValue}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            {/* Itens extras de custo fixo */}
+            <View style={styles.field}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Itens extras (opcional)</Text>
+                <InfoTip
+                  title="Itens extras"
+                  description='Use para custos fixos que não se encaixam nas categorias acima — por exemplo "Contador", "Transporte", "Assinatura de app". Você pode adicionar quantos quiser, e editar ou remover depois quando precisar.'
+                />
+              </View>
+
+              {extraCosts.map((item) => (
+                <View key={item.id} style={styles.extraItemRow}>
+                  <Text style={styles.extraItemText}>{item.label}</Text>
+                  <Text style={styles.extraItemValue}>
+                    {item.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </Text>
+                  <TouchableOpacity onPress={() => handleRemoveExtraCost(item.id)}>
+                    <Ionicons name="close-circle" size={20} color={COLORS.gray300} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <View style={styles.addExtraRow}>
+                <TextInput
+                  style={[styles.input, styles.extraLabelInput]}
+                  placeholder="Nome do item"
+                  placeholderTextColor={COLORS.gray300}
+                  value={newExtraLabel}
+                  onChangeText={setNewExtraLabel}
+                />
+                <TextInput
+                  style={[styles.input, styles.extraValueInput]}
+                  placeholder="R$"
+                  placeholderTextColor={COLORS.gray300}
+                  value={newExtraValue}
+                  onChangeText={setNewExtraValue}
+                  keyboardType="decimal-pad"
+                />
+                <TouchableOpacity style={styles.addExtraBtn} onPress={handleAddExtraCost}>
+                  <Ionicons name="add" size={20} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Prévia do custo fixo mensal total */}
-            {(toNum(rent) + toNum(electricity) + toNum(internet) + toNum(otherFixed) > 0) && (
+            {(toNum(rent) + toNum(electricity) + toNum(internet) + toNum(otherFixed) + extraCostsTotal > 0) && (
               <View style={styles.previewBox}>
                 <Text style={styles.previewLabel}>💡 Seus custos fixos somam</Text>
                 <Text style={styles.previewValue}>
-                  {(toNum(rent) + toNum(electricity) + toNum(internet) + toNum(otherFixed)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {(toNum(rent) + toNum(electricity) + toNum(internet) + toNum(otherFixed) + extraCostsTotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   <Text style={styles.previewUnit}> /mês</Text>
                 </Text>
                 {toNum(equipmentValue) > 0 && (
@@ -235,7 +323,7 @@ export default function OnboardingScreen() {
                 <Text style={styles.previewValue}>
                   {(
                     (toNum(desiredSalary) +
-                      toNum(rent) + toNum(electricity) + toNum(internet) + toNum(otherFixed) +
+                      toNum(rent) + toNum(electricity) + toNum(internet) + toNum(otherFixed) + extraCostsTotal +
                       toNum(dasMei)) /
                     (toNum(workDays) * toNum(workHours))
                   ).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -257,25 +345,49 @@ export default function OnboardingScreen() {
             <Text style={styles.stepDesc}>
               Já deixamos tudo configurado com os valores de 2026. Você pode ajustar se precisar.
             </Text>
-            {[
-              { label: 'DAS MEI mensal (R$)', value: dasMei, set: setDasMei },
-              { label: 'Taxa maquininha (%)', value: cardFee, set: setCardFee },
-              { label: 'Taxa Pix (%)', value: pixFee, set: setPixFee },
-              { label: 'Extra para novos impostos (%)', value: taxReform, set: setTaxReform },
-            ].map((f) => (
-              <View style={styles.field} key={f.label}>
-                <Text style={styles.label}>{f.label}</Text>
-                <TextInput
-                  style={[styles.input, styles.inputPrefilled]}
-                  value={f.value}
-                  onChangeText={f.set}
-                  keyboardType="decimal-pad"
+
+            <View style={styles.field}>
+              <Text style={styles.label}>DAS MEI mensal (R$)</Text>
+              <TextInput
+                style={[styles.input, styles.inputPrefilled]}
+                value={dasMei}
+                onChangeText={setDasMei}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Taxa maquininha (%)</Text>
+              <TextInput
+                style={[styles.input, styles.inputPrefilled]}
+                value={cardFee}
+                onChangeText={setCardFee}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Reserva de segurança (opcional)</Text>
+                <InfoTip
+                  title="Reserva de segurança"
+                  description="Não é um imposto do governo — o MEI é isento dos novos impostos da Reforma Tributária (CBS/IBS) enquanto faturar até R$ 81 mil/ano. Esse campo é só uma margem extra que você escolhe adicionar por conta própria, como proteção contra aumento de fornecedores ou imprevistos."
                 />
               </View>
-            ))}
+              <TextInput
+                style={[styles.input, styles.inputPrefilled]}
+                value={taxReform}
+                onChangeText={setTaxReform}
+                keyboardType="decimal-pad"
+              />
+              <Text style={styles.fieldHint}>
+                Deixe 0 se não quiser usar essa margem extra.
+              </Text>
+            </View>
+
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
-                💡 Esses valores são atualizados automaticamente conforme as regras do MEI 2026.
+                💡 O DAS MEI já vem no valor de 2026 para quem presta serviços. A taxa da maquininha varia conforme sua operadora — confira no app dela.
               </Text>
             </View>
           </View>
@@ -414,12 +526,13 @@ const styles = StyleSheet.create({
 
   // Campos
   field: { marginBottom: SPACING.md },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.xs },
   label: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
     color: COLORS.gray700,
-    marginBottom: SPACING.xs,
   },
+  fieldHint: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 4 },
   input: {
     borderWidth: 1.5,
     borderColor: COLORS.gray300,
@@ -432,6 +545,30 @@ const styles = StyleSheet.create({
   inputPrefilled: {
     borderColor: COLORS.primaryLight,
     backgroundColor: '#EEF4FB',
+  },
+
+  // Itens extras
+  extraItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.gray100,
+    borderRadius: 10,
+    padding: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  extraItemText: { flex: 1, fontSize: FONT_SIZES.sm, color: COLORS.gray700, fontWeight: '600' },
+  extraItemValue: { fontSize: FONT_SIZES.sm, color: COLORS.primary, fontWeight: '700' },
+  addExtraRow: { flexDirection: 'row', gap: SPACING.xs, alignItems: 'center' },
+  extraLabelInput: { flex: 1.5 },
+  extraValueInput: { flex: 1 },
+  addExtraBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Info box

@@ -6,6 +6,13 @@ export interface User {
   created_at: string;
 }
 
+// ─── Item extra de custo fixo ──────────────────────────────
+export interface ExtraCostItem {
+  id: string;
+  label: string;
+  value: number;
+}
+
 // ─── Configuração de Custos ────────────────────────────────
 export interface CostConfig {
   id: string;
@@ -15,6 +22,7 @@ export interface CostConfig {
   electricity: number;    // luz
   internet: number;       // internet
   other_fixed: number;    // outros fixos
+  extra_costs?: ExtraCostItem[]; // itens extras nomeados pela usuária
   // Equipamentos
   equipment_value: number;       // valor total dos equipamentos
   equipment_lifespan_months: number; // vida útil em meses
@@ -25,8 +33,8 @@ export interface CostConfig {
   // Fiscal
   das_mei_monthly: number;    // DAS MEI mensal (atualizado 2026)
   card_fee_percent: number;   // taxa maquininha %
-  pix_fee_percent: number;    // taxa pix %
-  tax_reform_adjustment: number; // ajuste Reforma 2026 em %
+  pix_fee_percent: number;    // taxa pix % (mantido no banco, não exibido na UI — Pix é gratuito na prática)
+  tax_reform_adjustment: number; // reserva de segurança opcional (%)
   updated_at: string;
 }
 

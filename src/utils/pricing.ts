@@ -7,11 +7,13 @@ export function calcHourlyCost(config: CostConfig): number {
   if (monthlyHours === 0) return 0;
 
   const depreciation = config.equipment_value / config.equipment_lifespan_months;
+  const extraCostsTotal = (config.extra_costs || []).reduce((sum, item) => sum + item.value, 0);
   const totalFixed =
     config.rent +
     config.electricity +
     config.internet +
     config.other_fixed +
+    extraCostsTotal +
     depreciation +
     config.das_mei_monthly +
     config.desired_salary;

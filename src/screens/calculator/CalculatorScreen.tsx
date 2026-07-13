@@ -22,6 +22,7 @@ import {
   formatCurrency,
 } from '../../utils/pricing';
 import { Service } from '../../types';
+import InfoTip from '../../components/InfoTip';
 
 function toNum(val: string): number {
   return parseFloat(val.replace(',', '.')) || 0;
@@ -280,7 +281,13 @@ export default function CalculatorScreen() {
                 />
               </View>
               <View style={[styles.field, styles.flex1]}>
-                <Text style={styles.label}>Custo insumos (R$)</Text>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Custo insumos (R$)</Text>
+                  <InfoTip
+                    title="Custo de insumos"
+                    description="É só o quanto gasta desse serviço específico, não o preço do pote inteiro. Ex: se um esmalte de R$ 20 rende 40 usos, o custo aqui é R$ 0,50."
+                  />
+                </View>
                 <TextInput
                   style={styles.input}
                   placeholder="0,00"
@@ -291,10 +298,6 @@ export default function CalculatorScreen() {
                 />
               </View>
             </View>
-            <Text style={styles.supplyHint}>
-              💡 É só o quanto gasta desse serviço, não o preço do pote inteiro.{'\n'}
-              Ex: se um esmalte de R$ 20 rende 40 usos, o custo aqui é R$ 0,50.
-            </Text>
 
             {/* Preços — editáveis */}
             {hasCalculated && (
@@ -430,6 +433,7 @@ const styles = StyleSheet.create({
   },
   field: { marginBottom: SPACING.md },
   row: { flexDirection: 'row', gap: SPACING.sm },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.xs },
   label: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.gray700, marginBottom: SPACING.xs },
   input: {
     borderWidth: 1.5,
