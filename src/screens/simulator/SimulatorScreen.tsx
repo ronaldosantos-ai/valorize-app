@@ -46,6 +46,21 @@ export default function SimulatorScreen() {
     return parseFloat(val.replace(',', '.')) || 0;
   }
 
+  function handleClearCurrentMode() {
+    if (mode === 'appointments') {
+      setCurrentAppointments('');
+      setExtraAppointments('');
+      setAvgProfit('');
+    } else if (mode === 'price') {
+      setCurrentPrice('');
+      setNewPrice('');
+      setMonthlyClients('');
+    } else {
+      setIncomeGoal('');
+      setServicePrice('');
+    }
+  }
+
   // ─── Resultados ────────────────────────────────────────────
 
   function renderAppointmentsResult() {
@@ -173,9 +188,18 @@ export default function SimulatorScreen() {
 
         {/* Formulários por modo */}
         <View style={styles.formCard}>
+          <View style={styles.formHeader}>
+            <Text style={styles.formTitle}>
+              {mode === 'appointments' ? 'E se eu atender mais clientes?' : mode === 'price' ? 'E se eu subir meu preço?' : 'Quanto preciso atender?'}
+            </Text>
+            <TouchableOpacity style={styles.clearBtn} onPress={handleClearCurrentMode}>
+              <Ionicons name="refresh-outline" size={14} color={COLORS.gray500} />
+              <Text style={styles.clearBtnText}>Limpar</Text>
+            </TouchableOpacity>
+          </View>
+
           {mode === 'appointments' && (
             <>
-              <Text style={styles.formTitle}>E se eu atender mais clientes?</Text>
               <Field label="Atendimentos atuais por dia" value={currentAppointments} onChange={setCurrentAppointments} placeholder="Ex: 4" />
               <Field label="Quantos a mais por dia?" value={extraAppointments} onChange={setExtraAppointments} placeholder="Ex: 2" />
               <Field label="Lucro médio por atendimento (R$)" value={avgProfit} onChange={setAvgProfit} placeholder="Ex: 45,00" decimal />
@@ -185,7 +209,6 @@ export default function SimulatorScreen() {
 
           {mode === 'price' && (
             <>
-              <Text style={styles.formTitle}>E se eu subir meu preço?</Text>
               <Field label="Preço atual (R$)" value={currentPrice} onChange={setCurrentPrice} placeholder="Ex: 40,00" decimal />
               <Field label="Novo preço (R$)" value={newPrice} onChange={setNewPrice} placeholder="Ex: 50,00" decimal />
               <Field label="Clientes por mês" value={monthlyClients} onChange={setMonthlyClients} placeholder="Ex: 80" />
@@ -195,7 +218,6 @@ export default function SimulatorScreen() {
 
           {mode === 'goal' && (
             <>
-              <Text style={styles.formTitle}>Quanto preciso atender?</Text>
               <Field label="Meta de renda mensal (R$)" value={incomeGoal} onChange={setIncomeGoal} placeholder="Ex: 3000,00" decimal />
               <Field label="Preço do serviço (R$)" value={servicePrice} onChange={setServicePrice} placeholder="Ex: 55,00" decimal />
               {renderGoalResult()}
@@ -287,7 +309,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 10,
   },
-  formTitle: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary, marginBottom: SPACING.lg },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  formTitle: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary, flex: 1, marginRight: SPACING.sm },
+  clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: COLORS.gray100,
+  },
+  clearBtnText: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, fontWeight: '600' },
   field: { marginBottom: SPACING.md },
   label: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.gray700, marginBottom: SPACING.xs },
   input: {

@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../utils/pricing';
@@ -45,6 +45,8 @@ const MONTH_NAMES = [
 
 export default function UsageHistoryScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const filter = route.params?.filter as 'today' | 'month' | undefined;
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,11 +62,21 @@ export default function UsageHistoryScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('appointments')
         .select('id, service_name, client_name, charged_price, net_profit, payment_method, notes, attended_at')
-        .eq('user_id', user.id)
-        .order('attended_at', { ascending: false });
+        .eq('user_id', user.id);
+
+      const now = new Date();
+      if (filter === 'today') {
+        const todayStr = now.toISOString().split('T')[0];
+        query = query.gte('attended_at', `${todayStr}T00:00:00`).lte('attended_at', `${todayStr}T23:59:59`);
+      } else if (filter === 'month') {
+        const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        query = query.gte('attended_at', `${monthStr}-01T00:00:00`);
+      }
+
+      const { data, error } = await query.order('attended_at', { ascending: false });
 
       if (error) throw error;
 
@@ -143,8 +155,12 @@ export default function UsageHistoryScreen() {
           <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <View>
-          <Text style={styles.title}>Histórico de Uso</Text>
-          <Text style={styles.subtitle}>Todos os seus atendimentos registrados</Text>
+          <Text style={styles.title}>
+            {filter === 'today' ? 'Atendimentos de hoje' : filter === 'month' ? 'Atendimentos do mês' : 'Histórico de Uso'}
+          </Text>
+          <Text style={styles.subtitle}>
+            {filter ? 'Detalhamento dos atendimentos' : 'Todos os seus atendimentos registrados'}
+          </Text>
         </View>
       </View>
 

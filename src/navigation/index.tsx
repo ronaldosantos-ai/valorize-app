@@ -29,7 +29,7 @@ export type RootStackParamList = {
   CostSettings: undefined;
   AccountMenu: undefined;
   PaymentHistory: undefined;
-  UsageHistory: undefined;
+  UsageHistory: { filter?: 'today' | 'month' } | undefined;
   Clients: undefined;
 };
 
@@ -78,6 +78,34 @@ function MainTabs() {
   );
 }
 
+// Verificação única e completa: considera "onboarding completo" se o perfil
+// diz que sim OU se já existe um registro de custos salvo — usada em TODOS
+// os pontos de entrada (carregamento inicial e mudanças de login), para
+// nunca haver contradição entre eles.
+async function checkOnboardingComplete(userId: string): Promise<boolean> {
+  const [profileResult, configResult] = await Promise.allSettled([
+    supabase
+      .from('profiles')
+      .select('has_completed_onboarding')
+      .eq('id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1),
+    supabase
+      .from('cost_configs')
+      .select('id')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1),
+  ]);
+
+  const profileData =
+    profileResult.status === 'fulfilled' ? profileResult.value.data?.[0] : null;
+  const configData =
+    configResult.status === 'fulfilled' ? configResult.value.data?.[0] : null;
+
+  return Boolean(profileData?.has_completed_onboarding || configData);
+}
+
 export default function Navigation() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -94,30 +122,8 @@ export default function Navigation() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setIsAuthenticated(true);
-
-          // Busca com order+limit (nunca quebra mesmo com registros duplicados)
-          const [profileResult, configResult] = await Promise.allSettled([
-            supabase
-              .from('profiles')
-              .select('has_completed_onboarding')
-              .eq('id', session.user.id)
-              .order('created_at', { ascending: false })
-              .limit(1),
-            supabase
-              .from('cost_configs')
-              .select('id')
-              .eq('user_id', session.user.id)
-              .order('updated_at', { ascending: false })
-              .limit(1),
-          ]);
-
-          const profileData =
-            profileResult.status === 'fulfilled' ? profileResult.value.data?.[0] : null;
-          const configData =
-            configResult.status === 'fulfilled' ? configResult.value.data?.[0] : null;
-
-          // Só considera "não completou" se realmente não encontrou nada em nenhuma das duas
-          setHasOnboarding(Boolean(profileData?.has_completed_onboarding || configData));
+          const complete = await checkOnboardingComplete(session.user.id);
+          setHasOnboarding(complete);
         }
       } catch (err) {
         console.error('Erro ao verificar sessão:', err);
@@ -128,19 +134,15 @@ export default function Navigation() {
     }
     checkSession();
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setIsAuthenticated(true);
         try {
-          const { data } = await supabase
-            .from('profiles')
-            .select('has_completed_onboarding')
-            .eq('id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          if (data && data.length > 0 && data[0].has_completed_onboarding) {
-            setHasOnboarding(true);
-          }
+          const complete = await checkOnboardingComplete(session.user.id);
+          // Só atualiza para true, ou define conforme o resultado real —
+          // nunca força false por erro transitório (feito dentro de checkOnboardingComplete
+          // via Promise.allSettled, que não lança exceção).
+          setHasOnboarding(complete);
         } catch {
           // Não força onboarding em caso de erro transitório
         }
@@ -150,10 +152,13 @@ export default function Navigation() {
       }
     });
 
-    return () => clearTimeout(safetyTimer);
+    return () => {
+      clearTimeout(safetyTimer);
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
-  // Quando costConfig é salvo, onboarding está completo
+  // Quando costConfig é salvo nesta sessão, onboarding está completo
   useEffect(() => {
     if (costConfig) setHasOnboarding(true);
   }, [costConfig]);

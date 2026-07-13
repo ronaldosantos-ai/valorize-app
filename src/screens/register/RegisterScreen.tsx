@@ -36,6 +36,11 @@ export default function RegisterScreen() {
 
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [customName, setCustomName] = useState('');
+  const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
+
+  const filteredServiceSuggestions = services.filter((s) =>
+    s.name.toLowerCase().includes(customName.toLowerCase())
+  );
   const [clientName, setClientName] = useState('');
   const [chargedPrice, setChargedPrice] = useState('');
   const [payment, setPayment] = useState<PaymentMethod>('pix');
@@ -67,11 +72,13 @@ export default function RegisterScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      // Mostra TODOS os serviços aqui (mesmo os ocultos da Tabela Premium) —
+      // "ocultar" deve afetar só o que a cliente vê na tabela de preços,
+      // não a praticidade de registrar um atendimento.
       const { data } = await supabase
         .from('services')
         .select('*')
         .eq('user_id', user.id)
-        .eq('is_active', true)
         .order('name');
       setServices(data || []);
     } finally {
@@ -231,9 +238,30 @@ export default function RegisterScreen() {
                 placeholder="Ex: Esmaltação simples"
                 placeholderTextColor={COLORS.gray300}
                 value={customName}
-                onChangeText={setCustomName}
+                onChangeText={(text) => {
+                  setCustomName(text);
+                  setShowServiceSuggestions(text.length > 0);
+                }}
+                onFocus={() => setShowServiceSuggestions(customName.length > 0)}
                 autoCapitalize="sentences"
               />
+              {showServiceSuggestions && filteredServiceSuggestions.length > 0 && (
+                <View style={styles.suggestionsBox}>
+                  {filteredServiceSuggestions.slice(0, 4).map((s) => (
+                    <TouchableOpacity
+                      key={s.id}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        handleSelectService(s);
+                        setShowServiceSuggestions(false);
+                      }}
+                    >
+                      <Ionicons name="pricetag-outline" size={16} color={COLORS.gray500} />
+                      <Text style={styles.suggestionText}>{s.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
           )}
 

@@ -240,7 +240,11 @@ export default function HomeScreen() {
 
       {/* Cards do dia */}
       <View style={styles.cardsRow}>
-        <View style={[styles.card, styles.cardBlue]}>
+        <TouchableOpacity
+          style={[styles.card, styles.cardBlue]}
+          onPress={() => navigation.getParent()?.navigate('UsageHistory' as never, { filter: 'today' } as never)}
+          activeOpacity={0.85}
+        >
           {isPersonalBest && (
             <View style={styles.bestBadge}>
               <Text style={styles.bestBadgeText}>🏆 RECORDE</Text>
@@ -250,13 +254,17 @@ export default function HomeScreen() {
           <Animated.Text style={[styles.cardValue, { transform: [{ scale: pulseAnim }] }]}>
             {formatCurrency(todayProfit)}
           </Animated.Text>
-          <Text style={styles.cardSub}>{todayAppointments} atendimento{todayAppointments !== 1 ? 's' : ''}</Text>
-        </View>
-        <View style={[styles.card, styles.cardGold]}>
+          <Text style={styles.cardSub}>{todayAppointments} atendimento{todayAppointments !== 1 ? 's' : ''} · toque para ver</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.card, styles.cardGold]}
+          onPress={() => navigation.getParent()?.navigate('UsageHistory' as never, { filter: 'month' } as never)}
+          activeOpacity={0.85}
+        >
           <Text style={styles.cardLabel}>Lucro no mês</Text>
           <Text style={styles.cardValueDark}>{formatCurrency(monthProfit)}</Text>
-          <Text style={styles.cardSubDark}>acumulado</Text>
-        </View>
+          <Text style={styles.cardSubDark}>acumulado · toque para ver</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Mensagem motivacional do dia */}

@@ -10,7 +10,6 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
@@ -24,21 +23,27 @@ import {
 } from '../../utils/pricing';
 import { Service } from '../../types';
 
+function toNum(val: string): number {
+  return parseFloat(val.replace(',', '.')) || 0;
+}
+
 export default function CalculatorScreen() {
   const { costConfig, services, setServices, addService } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [loadingServices, setLoadingServices] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   // Formulário
   const [serviceName, setServiceName] = useState('');
   const [duration, setDuration] = useState('');
   const [supplyCost, setSupplyCost] = useState('');
 
-  // Resultado calculado
-  const [minPrice, setMinPrice] = useState<number | null>(null);
-  const [perceivedPrice, setPerceivedPrice] = useState<number | null>(null);
-  const [shieldedPrice, setShieldedPrice] = useState<number | null>(null);
+  // Preços — editáveis pela usuária, preenchidos automaticamente ao calcular
+  const [minPriceStr, setMinPriceStr] = useState('');
+  const [perceivedPriceStr, setPerceivedPriceStr] = useState('');
+  const [shieldedPriceStr, setShieldedPriceStr] = useState('');
+  const hasCalculated = minPriceStr !== '' || perceivedPriceStr !== '';
 
   useEffect(() => { loadServices(); }, []);
 
@@ -57,27 +62,46 @@ export default function CalculatorScreen() {
     }
   }
 
+  // Recalcula os 3 preços sugeridos automaticamente quando duração/insumo mudam.
+  // A usuária ainda pode editar manualmente o valor final em cada campo depois.
   function calcPrices() {
     if (!costConfig) return;
-    const dur = parseFloat(duration.replace(',', '.'));
-    const supply = parseFloat(supplyCost.replace(',', '.')) || 0;
-    if (!dur || isNaN(dur)) return;
+    const dur = toNum(duration);
+    const supply = toNum(supplyCost);
+    if (!dur) return;
 
     const min = calcMinPrice(costConfig, dur, supply);
     const perceived = calcPerceivedPrice(min);
     const shielded = calcShieldedPrice(costConfig, dur, supply);
 
-    setMinPrice(min);
-    setPerceivedPrice(perceived);
-    setShieldedPrice(shielded);
+    setMinPriceStr(min.toFixed(2).replace('.', ','));
+    setPerceivedPriceStr(perceived.toFixed(2).replace('.', ','));
+    setShieldedPriceStr(shielded.toFixed(2).replace('.', ','));
   }
 
   useEffect(() => { calcPrices(); }, [duration, supplyCost, costConfig]);
 
+  function openNewServiceForm() {
+    setEditingServiceId(null);
+    handleClear();
+    setShowForm(true);
+  }
+
+  function openEditServiceForm(service: Service) {
+    setEditingServiceId(service.id);
+    setServiceName(service.name);
+    setDuration(String(service.duration_minutes));
+    setSupplyCost(service.supply_cost.toFixed(2).replace('.', ','));
+    setMinPriceStr(service.min_price.toFixed(2).replace('.', ','));
+    setPerceivedPriceStr(service.perceived_price.toFixed(2).replace('.', ','));
+    setShieldedPriceStr(service.shielded_price.toFixed(2).replace('.', ','));
+    setShowForm(true);
+  }
+
   async function handleSave() {
     if (!serviceName.trim()) { Alert.alert('Atenção', 'Informe o nome do serviço.'); return; }
     if (!duration) { Alert.alert('Atenção', 'Informe a duração em minutos.'); return; }
-    if (!minPrice || !perceivedPrice || !shieldedPrice) { Alert.alert('Atenção', 'Verifique os dados.'); return; }
+    if (!minPriceStr || !perceivedPriceStr || !shieldedPriceStr) { Alert.alert('Atenção', 'Verifique os preços.'); return; }
     if (!costConfig) { Alert.alert('Atenção', 'Configure seus custos primeiro.'); return; }
 
     setLoading(true);
@@ -85,28 +109,41 @@ export default function CalculatorScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Não autenticada.');
 
-      const service = {
-        user_id: user.id,
+      const serviceData = {
         name: serviceName.trim(),
         duration_minutes: parseInt(duration),
-        supply_cost: parseFloat(supplyCost.replace(',', '.')) || 0,
-        min_price: minPrice,
-        perceived_price: perceivedPrice,
-        shielded_price: shieldedPrice,
-        is_active: true,
+        supply_cost: toNum(supplyCost),
+        min_price: toNum(minPriceStr),
+        perceived_price: toNum(perceivedPriceStr),
+        shielded_price: toNum(shieldedPriceStr),
       };
 
-      const { data, error } = await supabase
-        .from('services')
-        .insert(service)
-        .select()
-        .single();
+      if (editingServiceId) {
+        // Editar NUNCA altera atendimentos já registrados — cada atendimento
+        // já guarda seu próprio valor no momento em que foi salvo, então isso
+        // só afeta os próximos registros e a Tabela Premium a partir de agora.
+        const { data, error } = await supabase
+          .from('services')
+          .update(serviceData)
+          .eq('id', editingServiceId)
+          .select()
+          .single();
+        if (error) throw error;
+        setServices(services.map(s => s.id === editingServiceId ? data : s));
+        Alert.alert('✅ Atualizado!', `"${serviceName}" foi atualizado com sucesso.`);
+      } else {
+        const { data, error } = await supabase
+          .from('services')
+          .insert({ user_id: user.id, ...serviceData, is_active: true })
+          .select()
+          .single();
+        if (error) throw error;
+        addService({ ...data, created_at: data.created_at || new Date().toISOString() });
+        Alert.alert('✅ Salvo!', `"${serviceName}" foi adicionado à sua lista de serviços.`);
+      }
 
-      if (error) throw error;
-
-      addService({ ...data, created_at: data.created_at || new Date().toISOString() });
-      Alert.alert('✅ Salvo!', `"${serviceName}" foi adicionado à sua lista de serviços.`);
       handleClear();
+      setEditingServiceId(null);
       setShowForm(false);
     } catch (err: any) {
       Alert.alert('Erro', err.message || 'Algo deu errado.');
@@ -133,23 +170,28 @@ export default function CalculatorScreen() {
     setServiceName('');
     setDuration('');
     setSupplyCost('');
-    setMinPrice(null);
-    setPerceivedPrice(null);
-    setShieldedPrice(null);
+    setMinPriceStr('');
+    setPerceivedPriceStr('');
+    setShieldedPriceStr('');
   }
 
-  function renderService({ item }: { item: Service }) {
+  function renderService(item: Service) {
     return (
-      <View style={styles.serviceCard}>
+      <View key={item.id} style={styles.serviceCard}>
         <View style={styles.serviceHeader}>
           <Text style={styles.serviceName}>{item.name}</Text>
-          <TouchableOpacity onPress={() => handleToggleActive(item)}>
-            <Ionicons
-              name={item.is_active ? 'eye-outline' : 'eye-off-outline'}
-              size={20}
-              color={item.is_active ? COLORS.success : COLORS.gray300}
-            />
-          </TouchableOpacity>
+          <View style={styles.serviceHeaderBtns}>
+            <TouchableOpacity onPress={() => openEditServiceForm(item)} style={styles.iconBtn}>
+              <Ionicons name="pencil-outline" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleToggleActive(item)} style={styles.iconBtn}>
+              <Ionicons
+                name={item.is_active ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+                color={item.is_active ? COLORS.success : COLORS.gray300}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
         <Text style={styles.serviceDuration}>⏱ {item.duration_minutes} minutos</Text>
         <View style={styles.pricesRow}>
@@ -172,6 +214,9 @@ export default function CalculatorScreen() {
             </Text>
           </View>
         </View>
+        {!item.is_active && (
+          <Text style={styles.hiddenNote}>👁️ Oculto só da Tabela Premium — continua disponível para registrar atendimentos</Text>
+        )}
       </View>
     );
   }
@@ -199,7 +244,7 @@ export default function CalculatorScreen() {
           </View>
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => setShowForm(!showForm)}
+            onPress={() => showForm ? setShowForm(false) : openNewServiceForm()}
           >
             <Ionicons name={showForm ? 'close' : 'add'} size={24} color={COLORS.white} />
           </TouchableOpacity>
@@ -208,7 +253,7 @@ export default function CalculatorScreen() {
         {/* Formulário */}
         {showForm && (
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Novo serviço</Text>
+            <Text style={styles.formTitle}>{editingServiceId ? 'Editar serviço' : 'Novo serviço'}</Text>
 
             <View style={styles.field}>
               <Text style={styles.label}>Nome do serviço</Text>
@@ -251,30 +296,39 @@ export default function CalculatorScreen() {
               Ex: se um esmalte de R$ 20 rende 40 usos, o custo aqui é R$ 0,50.
             </Text>
 
-            {/* Resultado */}
-            {minPrice !== null && (
+            {/* Preços — editáveis */}
+            {hasCalculated && (
               <View style={styles.resultBox}>
-                <Text style={styles.resultTitle}>💡 Preços calculados</Text>
+                <Text style={styles.resultTitle}>💡 Preços sugeridos — edite se quiser</Text>
                 <View style={styles.resultRow}>
                   <View style={[styles.resultCard, { borderColor: COLORS.danger }]}>
                     <Text style={styles.resultLabel}>🔴 Mínimo</Text>
-                    <Text style={[styles.resultValue, { color: COLORS.danger }]}>
-                      {formatCurrency(minPrice)}
-                    </Text>
+                    <TextInput
+                      style={[styles.resultInput, { color: COLORS.danger }]}
+                      value={minPriceStr}
+                      onChangeText={setMinPriceStr}
+                      keyboardType="decimal-pad"
+                    />
                     <Text style={styles.resultDesc}>Para não ter prejuízo</Text>
                   </View>
                   <View style={[styles.resultCard, { borderColor: COLORS.warning }]}>
                     <Text style={styles.resultLabel}>🟡 Ideal</Text>
-                    <Text style={[styles.resultValue, { color: COLORS.warning }]}>
-                      {formatCurrency(perceivedPrice!)}
-                    </Text>
+                    <TextInput
+                      style={[styles.resultInput, { color: COLORS.warning }]}
+                      value={perceivedPriceStr}
+                      onChangeText={setPerceivedPriceStr}
+                      keyboardType="decimal-pad"
+                    />
                     <Text style={styles.resultDesc}>Você lucra mais</Text>
                   </View>
                   <View style={[styles.resultCard, { borderColor: COLORS.success }]}>
                     <Text style={styles.resultLabel}>🟢 Blindado</Text>
-                    <Text style={[styles.resultValue, { color: COLORS.success }]}>
-                      {formatCurrency(shieldedPrice!)}
-                    </Text>
+                    <TextInput
+                      style={[styles.resultInput, { color: COLORS.success }]}
+                      value={shieldedPriceStr}
+                      onChangeText={setShieldedPriceStr}
+                      keyboardType="decimal-pad"
+                    />
                     <Text style={styles.resultDesc}>Com impostos 2026</Text>
                   </View>
                 </View>
@@ -283,7 +337,7 @@ export default function CalculatorScreen() {
 
             {/* Botões */}
             <View style={styles.formBtns}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => { handleClear(); setShowForm(false); }}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => { handleClear(); setEditingServiceId(null); setShowForm(false); }}>
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -293,7 +347,7 @@ export default function CalculatorScreen() {
               >
                 {loading
                   ? <ActivityIndicator color={COLORS.white} />
-                  : <Text style={styles.saveBtnText}>Salvar serviço</Text>
+                  : <Text style={styles.saveBtnText}>{editingServiceId ? 'Salvar alterações' : 'Salvar serviço'}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -312,9 +366,7 @@ export default function CalculatorScreen() {
         ) : (
           <>
             <Text style={styles.listTitle}>Seus serviços ({services.length})</Text>
-            {services.map((item) => (
-              <View key={item.id}>{renderService({ item })}</View>
-            ))}
+            {services.map((item) => renderService(item))}
           </>
         )}
 
@@ -389,7 +441,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.offWhite,
   },
 
-  // Resultado
+  // Resultado — agora editável
   resultBox: {
     backgroundColor: COLORS.gray100,
     borderRadius: 14,
@@ -407,7 +459,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resultLabel: { fontSize: 10, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
-  resultValue: { fontSize: FONT_SIZES.md, fontWeight: '800' },
+  resultInput: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '800',
+    textAlign: 'center',
+    padding: 0,
+    minWidth: 60,
+  },
   resultDesc: { fontSize: 9, color: COLORS.gray500, textAlign: 'center', marginTop: 2 },
 
   // Botões do formulário
@@ -444,14 +502,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
   },
-  serviceCardInactive: { opacity: 0.5 },
   serviceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  serviceName: { fontSize: FONT_SIZES.md, fontWeight: '700', color: COLORS.gray700 },
+  serviceHeaderBtns: { flexDirection: 'row', gap: SPACING.sm },
+  iconBtn: { padding: 2 },
+  serviceName: { fontSize: FONT_SIZES.md, fontWeight: '700', color: COLORS.gray700, flex: 1 },
   serviceDuration: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginBottom: SPACING.sm },
   pricesRow: { flexDirection: 'row', gap: SPACING.xs },
   priceItem: { flex: 1, alignItems: 'center' },
   priceItemLabel: { fontSize: 10, color: COLORS.gray500, fontWeight: '600' },
   priceItemValue: { fontSize: FONT_SIZES.sm, fontWeight: '800' },
+  hiddenNote: { fontSize: 10, color: COLORS.gray300, marginTop: SPACING.xs, fontStyle: 'italic' },
 
   // Vazio
   emptyBox: { alignItems: 'center', paddingVertical: SPACING.xxl },
