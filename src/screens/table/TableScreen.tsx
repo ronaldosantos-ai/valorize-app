@@ -302,13 +302,26 @@ export default function TableScreen() {
     );
   }
 
-  if (activeServices.length === 0) {
+  if (services.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyEmoji}>💅</Text>
         <Text style={styles.emptyTitle}>Nenhum serviço cadastrado</Text>
         <Text style={styles.emptyDesc}>
           Cadastre seus serviços na aba "Preços" para gerar sua tabela premium.
+        </Text>
+      </View>
+    );
+  }
+
+  if (activeServices.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyEmoji}>👁️</Text>
+        <Text style={styles.emptyTitle}>Todos os serviços estão ocultos</Text>
+        <Text style={styles.emptyDesc}>
+          Você tem {services.length} serviço{services.length !== 1 ? 's' : ''} cadastrado{services.length !== 1 ? 's' : ''}, mas todos estão com o olho fechado.{'\n\n'}
+          Vá em "Preços" e toque no ícone do olho para deixar pelo menos um visível na tabela.
         </Text>
       </View>
     );
