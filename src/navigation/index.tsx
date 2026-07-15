@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View } from 'react-native';
 import { COLORS } from '../constants';
 import { supabase } from '../lib/supabase';
-import { useAppStore } from '../store';
 import { useLoadUserData } from '../hooks/useLoadUserData';
 
 import HomeScreen from '../screens/home/HomeScreen';
@@ -16,7 +15,6 @@ import TableScreen from '../screens/table/TableScreen';
 import SimulatorScreen from '../screens/simulator/SimulatorScreen';
 import ClientsScreen from '../screens/clients/ClientsScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
-import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import CostSettingsScreen from '../screens/settings/CostSettingsScreen';
 import AccountMenuScreen from '../screens/account/AccountMenuScreen';
 import PaymentHistoryScreen from '../screens/account/PaymentHistoryScreen';
@@ -24,7 +22,6 @@ import UsageHistoryScreen from '../screens/account/UsageHistoryScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
-  Onboarding: undefined;
   Main: undefined;
   CostSettings: undefined;
   AccountMenu: undefined;
@@ -78,39 +75,13 @@ function MainTabs() {
   );
 }
 
-// Verificação única e completa: considera "onboarding completo" se o perfil
-// diz que sim OU se já existe um registro de custos salvo — usada em TODOS
-// os pontos de entrada (carregamento inicial e mudanças de login), para
-// nunca haver contradição entre eles.
-async function checkOnboardingComplete(userId: string): Promise<boolean> {
-  const [profileResult, configResult] = await Promise.allSettled([
-    supabase
-      .from('profiles')
-      .select('has_completed_onboarding')
-      .eq('id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1),
-    supabase
-      .from('cost_configs')
-      .select('id')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1),
-  ]);
-
-  const profileData =
-    profileResult.status === 'fulfilled' ? profileResult.value.data?.[0] : null;
-  const configData =
-    configResult.status === 'fulfilled' ? configResult.value.data?.[0] : null;
-
-  return Boolean(profileData?.has_completed_onboarding || configData);
-}
-
+// A entrada no app depende SOMENTE do login. A configuração de custos
+// (antes um "onboarding" obrigatório que travava a entrada) agora é só
+// um lembrete forte na tela de Início — a usuária sempre acessa o app
+// normalmente, mesmo sem ter configurado nada ainda.
 export default function Navigation() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [hasOnboarding, setHasOnboarding] = useState(false);
-  const { costConfig } = useAppStore();
   useLoadUserData();
 
   useEffect(() => {
@@ -120,11 +91,7 @@ export default function Navigation() {
     async function checkSession() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setIsAuthenticated(true);
-          const complete = await checkOnboardingComplete(session.user.id);
-          setHasOnboarding(complete);
-        }
+        setIsAuthenticated(Boolean(session?.user));
       } catch (err) {
         console.error('Erro ao verificar sessão:', err);
       } finally {
@@ -134,22 +101,8 @@ export default function Navigation() {
     }
     checkSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setIsAuthenticated(true);
-        try {
-          const complete = await checkOnboardingComplete(session.user.id);
-          // Só atualiza para true, ou define conforme o resultado real —
-          // nunca força false por erro transitório (feito dentro de checkOnboardingComplete
-          // via Promise.allSettled, que não lança exceção).
-          setHasOnboarding(complete);
-        } catch {
-          // Não força onboarding em caso de erro transitório
-        }
-      } else {
-        setIsAuthenticated(false);
-        setHasOnboarding(false);
-      }
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session?.user));
     });
 
     return () => {
@@ -157,11 +110,6 @@ export default function Navigation() {
       authListener?.subscription?.unsubscribe();
     };
   }, []);
-
-  // Quando costConfig é salvo nesta sessão, onboarding está completo
-  useEffect(() => {
-    if (costConfig) setHasOnboarding(true);
-  }, [costConfig]);
 
   if (loading) {
     return (
@@ -176,8 +124,6 @@ export default function Navigation() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
-        ) : !hasOnboarding ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />

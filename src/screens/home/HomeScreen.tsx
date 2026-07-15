@@ -228,6 +228,44 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Checklist de configuração inicial — destaque forte, logo no topo */}
+      {(!costConfig || services.length === 0) && (
+        <View style={styles.setupBox}>
+          <Text style={styles.setupTitle}>🚀 Falta pouco para começar!</Text>
+          <Text style={styles.setupSubtitle}>Complete agora para usar o app com todo o potencial:</Text>
+          {!costConfig && (
+            <TouchableOpacity
+              style={styles.setupItem}
+              onPress={() => navigation.getParent()?.navigate('CostSettings' as never)}
+            >
+              <View style={styles.setupItemIcon}>
+                <Ionicons name="settings-outline" size={20} color={COLORS.primary} />
+              </View>
+              <View style={styles.setupItemText}>
+                <Text style={styles.setupItemTitle}>Configure seus custos</Text>
+                <Text style={styles.setupItemDesc}>Aluguel, luz, salário desejado e impostos</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.primaryDark} />
+            </TouchableOpacity>
+          )}
+          {services.length === 0 && (
+            <TouchableOpacity
+              style={styles.setupItem}
+              onPress={() => navigation.navigate('Calculator')}
+            >
+              <View style={styles.setupItemIcon}>
+                <Ionicons name="pricetag-outline" size={20} color={COLORS.primary} />
+              </View>
+              <View style={styles.setupItemText}>
+                <Text style={styles.setupItemTitle}>Cadastre seu primeiro serviço</Text>
+                <Text style={styles.setupItemDesc}>Descubra quanto cobrar com segurança</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.primaryDark} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {/* Sequência de dias ativa */}
       {streakDays >= 2 && (
         <View style={styles.streakBanner}>
@@ -322,39 +360,6 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Checklist de configuração inicial */}
-      {(!costConfig || services.length === 0) && (
-        <View style={styles.setupBox}>
-          <Text style={styles.setupTitle}>🚀 Complete sua configuração</Text>
-          {!costConfig && (
-            <TouchableOpacity
-              style={styles.setupItem}
-              onPress={() => navigation.getParent()?.navigate('CostSettings' as never)}
-            >
-              <Ionicons name="settings-outline" size={20} color={COLORS.gold} />
-              <View style={styles.setupItemText}>
-                <Text style={styles.setupItemTitle}>Configure seus custos</Text>
-                <Text style={styles.setupItemDesc}>Aluguel, luz, salário desejado e impostos</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.gray300} />
-            </TouchableOpacity>
-          )}
-          {services.length === 0 && (
-            <TouchableOpacity
-              style={styles.setupItem}
-              onPress={() => navigation.navigate('Calculator')}
-            >
-              <Ionicons name="pricetag-outline" size={20} color={COLORS.gold} />
-              <View style={styles.setupItemText}>
-                <Text style={styles.setupItemTitle}>Cadastre seu primeiro serviço</Text>
-                <Text style={styles.setupItemDesc}>Descubra quanto cobrar com segurança</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.gray300} />
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
       {/* Ações rápidas */}
       <Text style={styles.quickTitle}>Acesso rápido</Text>
       <View style={styles.quickRow}>
@@ -423,35 +428,48 @@ const styles = StyleSheet.create({
 
   // Checklist de configuração
   setupBox: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
+    backgroundColor: COLORS.gold,
+    borderRadius: 18,
     padding: SPACING.md,
     marginBottom: SPACING.md,
-    borderWidth: 1.5,
-    borderColor: COLORS.gold + '50',
-    elevation: 2,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
   },
   setupTitle: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '700',
-    color: COLORS.primary,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '800',
+    color: COLORS.primaryDark,
+  },
+  setupSubtitle: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.primaryDark,
+    opacity: 0.85,
+    marginTop: 2,
     marginBottom: SPACING.sm,
   },
   setupItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    paddingVertical: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.gray100,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    borderRadius: 12,
+    padding: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  setupItemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   setupItemText: { flex: 1 },
-  setupItemTitle: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.gray700 },
-  setupItemDesc: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 2 },
+  setupItemTitle: { fontSize: FONT_SIZES.sm, fontWeight: '800', color: COLORS.primaryDark },
+  setupItemDesc: { fontSize: FONT_SIZES.xs, color: COLORS.primaryDark, opacity: 0.8, marginTop: 2 },
 
   // Cards do dia
   cardsRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm },
