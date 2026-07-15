@@ -14,11 +14,13 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import { supabase } from '../../lib/supabase';
 import { useAppStore } from '../../store';
 import { formatCurrency } from '../../utils/pricing';
 
@@ -80,9 +82,10 @@ function textColorFor(bg: string): string {
 }
 
 export default function TableScreen() {
-  const { services, costConfig } = useAppStore();
+  const { services, costConfig, setServices } = useAppStore();
   const viewShotRef = useRef<ViewShot>(null);
   const [sharing, setSharing] = useState(false);
+  const [loadingServices, setLoadingServices] = useState(true);
 
   // Templates salvos
   const [templates, setTemplates] = useState<TableTemplate[]>([]);
@@ -107,6 +110,33 @@ export default function TableScreen() {
   const textColor = textColorFor(bgColor);
   const activeServices = services.filter(s => s.is_active);
   const displayServices = activeServices.filter(s => selectedServices.includes(s.id));
+
+  // Busca os serviços diretamente do banco sempre que a tela ganha foco —
+  // não depende só da memória global, que pode ainda não ter carregado
+  // se a usuária abrir essa aba logo ao iniciar o app.
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+      async function loadServices() {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          const { data } = await supabase
+            .from('services')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+          if (active && data) setServices(data);
+        } catch (err) {
+          console.error('Erro ao carregar serviços da tabela:', err);
+        } finally {
+          if (active) setLoadingServices(false);
+        }
+      }
+      loadServices();
+      return () => { active = false; };
+    }, [])
+  );
 
   // Carrega personalização salva
   useEffect(() => {
@@ -262,6 +292,14 @@ export default function TableScreen() {
     const updated = templates.filter(t => t.id !== id);
     setTemplates(updated);
     await AsyncStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+  }
+
+  if (loadingServices) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={COLORS.primary} size="large" />
+      </View>
+    );
   }
 
   if (activeServices.length === 0) {
@@ -612,6 +650,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.lg, paddingBottom: SPACING.xxl },
 
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, backgroundColor: COLORS.background },
   emptyEmoji: { fontSize: 56, marginBottom: SPACING.md },
   emptyTitle: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary, marginBottom: SPACING.sm },
