@@ -24,6 +24,7 @@ import {
 } from '../../utils/pricing';
 import { Service } from '../../types';
 import InfoTip from '../../components/InfoTip';
+import CurrencyInput from '../../components/CurrencyInput';
 
 function toNum(val: string): number {
   return parseFloat(val.replace(',', '.')) || 0;
@@ -96,11 +97,11 @@ export default function CalculatorScreen() {
   function openEditServiceForm(service: Service) {
     setEditingServiceId(service.id);
     setServiceName(service.name);
-    setDuration(String(service.duration_minutes));
-    setSupplyCost(service.supply_cost.toFixed(2).replace('.', ','));
-    setMinPriceStr(service.min_price.toFixed(2).replace('.', ','));
-    setPerceivedPriceStr(service.perceived_price.toFixed(2).replace('.', ','));
-    setShieldedPriceStr(service.shielded_price.toFixed(2).replace('.', ','));
+    setDuration(service.duration_minutes ? String(service.duration_minutes) : '');
+    setSupplyCost(service.supply_cost ? service.supply_cost.toFixed(2).replace('.', ',') : '');
+    setMinPriceStr(service.min_price ? service.min_price.toFixed(2).replace('.', ',') : '');
+    setPerceivedPriceStr(service.perceived_price ? service.perceived_price.toFixed(2).replace('.', ',') : '');
+    setShieldedPriceStr(service.shielded_price ? service.shielded_price.toFixed(2).replace('.', ',') : '');
     setShowForm(true);
   }
 
@@ -173,6 +174,29 @@ export default function CalculatorScreen() {
     }
   }
 
+  function handleDeleteService(service: Service) {
+    Alert.alert(
+      'Excluir serviço',
+      `Tem certeza que deseja excluir "${service.name}"? O histórico de atendimentos já registrados não será afetado — só esse serviço deixará de aparecer na Calculadora e na Tabela.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.from('services').delete().eq('id', service.id);
+              if (error) throw error;
+              setServices(services.filter(s => s.id !== service.id));
+            } catch (err: any) {
+              Alert.alert('Erro', err.message || 'Não foi possível excluir o serviço.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   function handleClear() {
     setServiceName('');
     setDuration('');
@@ -197,6 +221,9 @@ export default function CalculatorScreen() {
                 size={20}
                 color={item.is_active ? COLORS.success : COLORS.gray300}
               />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDeleteService(item)} style={styles.iconBtn}>
+              <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
             </TouchableOpacity>
           </View>
         </View>
@@ -302,13 +329,10 @@ export default function CalculatorScreen() {
                     description="É só o quanto gasta desse serviço específico, não o preço do pote inteiro. Ex: se um esmalte de R$ 20 rende 40 usos, o custo aqui é R$ 0,50."
                   />
                 </View>
-                <TextInput
+                <CurrencyInput
                   style={styles.input}
-                  placeholder="0,00"
-                  placeholderTextColor={COLORS.gray300}
                   value={supplyCost}
-                  onChangeText={setSupplyCost}
-                  keyboardType="decimal-pad"
+                  onChangeValue={setSupplyCost}
                 />
               </View>
             </View>
@@ -320,31 +344,28 @@ export default function CalculatorScreen() {
                 <View style={styles.resultRow}>
                   <View style={[styles.resultCard, { borderColor: COLORS.danger }]}>
                     <Text style={styles.resultLabel}>🔴 Mínimo</Text>
-                    <TextInput
+                    <CurrencyInput
                       style={[styles.resultInput, { color: COLORS.danger }]}
                       value={minPriceStr}
-                      onChangeText={setMinPriceStr}
-                      keyboardType="decimal-pad"
+                      onChangeValue={setMinPriceStr}
                     />
                     <Text style={styles.resultDesc}>Para não ter prejuízo</Text>
                   </View>
                   <View style={[styles.resultCard, { borderColor: COLORS.warning }]}>
                     <Text style={styles.resultLabel}>🟡 Ideal</Text>
-                    <TextInput
+                    <CurrencyInput
                       style={[styles.resultInput, { color: COLORS.warning }]}
                       value={perceivedPriceStr}
-                      onChangeText={setPerceivedPriceStr}
-                      keyboardType="decimal-pad"
+                      onChangeValue={setPerceivedPriceStr}
                     />
                     <Text style={styles.resultDesc}>Você lucra mais</Text>
                   </View>
                   <View style={[styles.resultCard, { borderColor: COLORS.success }]}>
                     <Text style={styles.resultLabel}>🟢 Blindado</Text>
-                    <TextInput
+                    <CurrencyInput
                       style={[styles.resultInput, { color: COLORS.success }]}
                       value={shieldedPriceStr}
-                      onChangeText={setShieldedPriceStr}
-                      keyboardType="decimal-pad"
+                      onChangeValue={setShieldedPriceStr}
                     />
                     <Text style={styles.resultDesc}>Com impostos 2026</Text>
                   </View>

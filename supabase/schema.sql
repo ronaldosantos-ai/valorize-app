@@ -65,7 +65,7 @@ create table public.clients (
 create table public.appointments (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.profiles(id) on delete cascade not null,
-  service_id uuid references public.services(id),
+  service_id uuid references public.services(id) on delete set null,
   client_id uuid references public.clients(id) on delete set null,
   service_name text not null,
   client_name text,
