@@ -13,6 +13,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { useAppStore } from '../../store';
@@ -28,7 +29,7 @@ const PAYMENT_OPTIONS: { key: PaymentMethod; label: string; icon: string; color:
 ];
 
 export default function RegisterScreen() {
-  const { costConfig, addAppointment } = useAppStore();
+  const { costConfig, addAppointment, addService } = useAppStore();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -55,7 +56,15 @@ export default function RegisterScreen() {
     c.name.toLowerCase().includes(clientName.toLowerCase())
   );
 
-  useEffect(() => { loadServices(); loadKnownClients(); }, []);
+  // Recarrega serviços e clientes toda vez que a tela ganha foco —
+  // essencial porque as abas ficam "vivas" em segundo plano e um novo
+  // serviço cadastrado em Preços não apareceria aqui sem isso.
+  useFocusEffect(
+    React.useCallback(() => {
+      loadServices();
+      loadKnownClients();
+    }, [])
+  );
 
   async function loadKnownClients() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -173,6 +182,36 @@ export default function RegisterScreen() {
       if (trimmedClientName && !selectedClientId) {
         loadKnownClients(); // atualiza a lista para incluir a cliente recém-criada
       }
+
+      // Se o serviço foi digitado à mão e não corresponde a nenhum já cadastrado,
+      // cria automaticamente um registro em "Preços" — sinalizado para revisão,
+      // já que ainda faltam duração e custo de insumos para o cálculo correto.
+      if (!selectedService) {
+        const alreadyExists = services.some(
+          (s) => s.name.trim().toLowerCase() === name.trim().toLowerCase()
+        );
+        if (!alreadyExists) {
+          const { data: newService, error: serviceError } = await supabase
+            .from('services')
+            .insert({
+              user_id: user.id,
+              name: name.trim(),
+              duration_minutes: 0,
+              supply_cost: 0,
+              min_price: price,
+              perceived_price: price,
+              shielded_price: price,
+              is_active: true,
+              needs_review: true,
+            })
+            .select()
+            .single();
+          if (!serviceError && newService) {
+            addService(newService);
+          }
+        }
+      }
+
       setNetProfit(profit);
       setShowSuccess(true);
     } catch (err: any) {

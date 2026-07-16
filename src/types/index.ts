@@ -61,6 +61,7 @@ export interface Service {
   perceived_price: number;  // Preço de Valor Percebido
   shielded_price: number;   // Preço Blindado 2026 (com impostos)
   is_active: boolean;
+  needs_review?: boolean; // criado automaticamente pelo Registro, sem duração/custo definidos
   created_at: string;
 }
 

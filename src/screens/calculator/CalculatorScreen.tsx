@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { useAppStore } from '../../store';
@@ -46,7 +47,11 @@ export default function CalculatorScreen() {
   const [shieldedPriceStr, setShieldedPriceStr] = useState('');
   const hasCalculated = minPriceStr !== '' || perceivedPriceStr !== '';
 
-  useEffect(() => { loadServices(); }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadServices();
+    }, [])
+  );
 
   async function loadServices() {
     try {
@@ -117,6 +122,7 @@ export default function CalculatorScreen() {
         min_price: toNum(minPriceStr),
         perceived_price: toNum(perceivedPriceStr),
         shielded_price: toNum(shieldedPriceStr),
+        needs_review: false, // qualquer salvamento pelo formulário completo os dados
       };
 
       if (editingServiceId) {
@@ -178,7 +184,7 @@ export default function CalculatorScreen() {
 
   function renderService(item: Service) {
     return (
-      <View key={item.id} style={styles.serviceCard}>
+      <View key={item.id} style={[styles.serviceCard, item.needs_review && styles.serviceCardWarning]}>
         <View style={styles.serviceHeader}>
           <Text style={styles.serviceName}>{item.name}</Text>
           <View style={styles.serviceHeaderBtns}>
@@ -194,6 +200,14 @@ export default function CalculatorScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        {item.needs_review && (
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning" size={14} color="#B8860B" />
+            <Text style={styles.warningBannerText}>
+              Criado automaticamente pelo Registro — falta duração e custo de insumos para calcular certo. Toque no lápis para completar.
+            </Text>
+          </View>
+        )}
         <Text style={styles.serviceDuration}>⏱ {item.duration_minutes} minutos</Text>
         <View style={styles.pricesRow}>
           <View style={styles.priceItem}>
@@ -506,6 +520,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
   },
+  serviceCardWarning: {
+    borderWidth: 1.5,
+    borderColor: '#F0C420',
+    backgroundColor: '#FFFDF0',
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#FFF3C4',
+    borderRadius: 8,
+    padding: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  warningBannerText: { flex: 1, fontSize: 11, color: '#7A5C00', lineHeight: 15 },
   serviceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   serviceHeaderBtns: { flexDirection: 'row', gap: SPACING.sm },
   iconBtn: { padding: 2 },

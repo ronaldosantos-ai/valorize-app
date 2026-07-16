@@ -109,7 +109,7 @@ export default function TableScreen() {
 
   const textColor = textColorFor(bgColor);
   const activeServices = services.filter(s => s.is_active);
-  const displayServices = activeServices.filter(s => selectedServices.includes(s.id));
+  const displayServices = services.filter(s => selectedServices.includes(s.id));
 
   // Busca os serviços diretamente do banco sempre que a tela ganha foco —
   // não depende só da memória global, que pode ainda não ter carregado
@@ -309,19 +309,6 @@ export default function TableScreen() {
         <Text style={styles.emptyTitle}>Nenhum serviço cadastrado</Text>
         <Text style={styles.emptyDesc}>
           Cadastre seus serviços na aba "Preços" para gerar sua tabela premium.
-        </Text>
-      </View>
-    );
-  }
-
-  if (activeServices.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyEmoji}>👁️</Text>
-        <Text style={styles.emptyTitle}>Todos os serviços estão ocultos</Text>
-        <Text style={styles.emptyDesc}>
-          Você tem {services.length} serviço{services.length !== 1 ? 's' : ''} cadastrado{services.length !== 1 ? 's' : ''}, mas todos estão com o olho fechado.{'\n\n'}
-          Vá em "Preços" e toque no ícone do olho para deixar pelo menos um visível na tabela.
         </Text>
       </View>
     );
@@ -587,14 +574,14 @@ export default function TableScreen() {
       {/* ═══ SERVIÇOS ═══ */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>💅 Serviços na tabela</Text>
-        {activeServices.map((service) => (
+        {services.map((service) => (
           <TouchableOpacity
             key={service.id}
             style={[styles.serviceToggle, selectedServices.includes(service.id) && styles.serviceToggleActive]}
             onPress={() => toggleService(service.id)}
           >
             <Text style={[styles.serviceToggleName, selectedServices.includes(service.id) && styles.serviceToggleNameActive]}>
-              {service.name}
+              {service.name}{!service.is_active ? ' (oculto)' : ''}
             </Text>
             <Text style={styles.serviceTogglePrice}>
               {formatCurrency(displayPrice(service))}
