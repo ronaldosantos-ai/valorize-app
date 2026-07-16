@@ -212,6 +212,9 @@ export default function RegisterScreen() {
         }
       }
 
+      // Limpa o formulário assim que o registro é confirmado — não depende
+      // de qual botão do modal de sucesso ela toca depois (X, voltar, etc.)
+      handleClear();
       setNetProfit(profit);
       setShowSuccess(true);
     } catch (err: any) {
