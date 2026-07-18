@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES, MEI_ANNUAL_LIMIT } from '../../constants';
 import { getTodayTip } from '../../constants/tips';
 import { supabase } from '../../lib/supabase';
-import { formatCurrency, calcMeiProgress, calcSalaryProgress } from '../../utils/pricing';
+import { formatCurrency, calcMeiProgress, calcSalaryProgress, calcBreakeven } from '../../utils/pricing';
 import { useAppStore } from '../../store';
 import type { TabParamList } from '../../navigation';
 
@@ -38,6 +38,8 @@ export default function HomeScreen() {
   const [todayProfit, setTodayProfit] = useState(0);
   const [todayAppointments, setTodayAppointments] = useState(0);
   const [monthProfit, setMonthProfit] = useState(0);
+  const [monthAppointments, setMonthAppointments] = useState(0);
+  const [hasEverAttended, setHasEverAttended] = useState(true); // true por padrão até confirmar, evita "flash" da mensagem
   const [yearRevenue, setYearRevenue] = useState(0);
   const [streakDays, setStreakDays] = useState(0);
   const [isPersonalBest, setIsPersonalBest] = useState(false);
@@ -55,6 +57,13 @@ export default function HomeScreen() {
         .eq('id', user.id)
         .single();
       if (profile) setUserName(profile.name.split(' ')[0]);
+
+      // Verifica se a usuária já registrou algum atendimento alguma vez (histórico completo)
+      const { count: everCount } = await supabase
+        .from('appointments')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      setHasEverAttended((everCount || 0) > 0);
 
       // Hoje
       const today = new Date();
@@ -81,6 +90,7 @@ export default function HomeScreen() {
 
       if (monthData) {
         setMonthProfit(monthData.reduce((sum, a) => sum + a.net_profit, 0));
+        setMonthAppointments(monthData.length);
       }
 
       // Ano atual (para monitor MEI)
@@ -168,11 +178,14 @@ export default function HomeScreen() {
   const workDays = costConfig?.work_days_per_month || 22;
   const dailyGoal = desiredSalary / workDays;
   const salaryProgress = calcSalaryProgress(monthProfit, desiredSalary);
+  const avgProfitPerAppointment = monthAppointments > 0 ? monthProfit / monthAppointments : 0;
+  const breakeven = costConfig ? calcBreakeven(costConfig, avgProfitPerAppointment) : null;
+  const breakevenReached = monthAppointments >= (breakeven?.appointmentsPerMonth || Infinity) && (breakeven?.appointmentsPerMonth || 0) > 0;
   const meiProgress = calcMeiProgress(yearRevenue);
   const todayTip = getTodayTip();
 
   function getDailyMessage(): { text: string; emoji: string } {
-    if (todayAppointments === 0) {
+    if (!hasEverAttended) {
       return { text: 'Registre seu primeiro atendimento e veja a mágica acontecer!', emoji: '☀️' };
     }
     const percent = dailyGoal > 0 ? (todayProfit / dailyGoal) * 100 : 0;
@@ -328,6 +341,44 @@ export default function HomeScreen() {
             : `Faltam ${formatCurrency(salaryProgress.remaining)} para sua meta`}
         </Text>
       </View>
+
+      {/* Ponto de equilíbrio */}
+      {breakeven && breakeven.appointmentsPerMonth > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>⚖️ Ponto de equilíbrio</Text>
+            <Text style={styles.sectionValue}>
+              {monthAppointments} / {breakeven.appointmentsPerMonth} atend.
+            </Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${Math.min((monthAppointments / breakeven.appointmentsPerMonth) * 100, 100)}%`,
+                  backgroundColor: breakevenReached ? COLORS.success : COLORS.gold,
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressLabel}>
+            {breakevenReached
+              ? '🎉 Custos fixos cobertos! A partir daqui é lucro puro.'
+              : `Faltam ${breakeven.appointmentsPerMonth - monthAppointments} atendimentos para cobrir seus custos fixos este mês`}
+          </Text>
+        </View>
+      )}
+      {costConfig && breakeven && breakeven.appointmentsPerMonth === 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>⚖️ Ponto de equilíbrio</Text>
+          </View>
+          <Text style={styles.progressLabel}>
+            Registre atendimentos este mês para ver quantos você precisa para cobrir seus custos fixos ({formatCurrency(breakeven.totalFixedCosts)}).
+          </Text>
+        </View>
+      )}
 
       {/* Monitor MEI */}
       <View style={[styles.section, meiProgress.isAlert && styles.sectionAlert]}>

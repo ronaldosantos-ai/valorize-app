@@ -12,14 +12,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { useAppStore } from '../../store';
-import { formatCurrency, simulateScenario } from '../../utils/pricing';
+import { formatCurrency, simulateScenario, calcBreakeven } from '../../utils/pricing';
 
-type SimMode = 'appointments' | 'price' | 'goal';
+type SimMode = 'appointments' | 'price' | 'goal' | 'breakeven';
 
 const MODES: { key: SimMode; label: string; icon: string; desc: string }[] = [
   { key: 'appointments', label: 'Mais atendimentos', icon: 'people-outline', desc: 'E se eu atender mais clientes?' },
   { key: 'price', label: 'Aumento de preço', icon: 'trending-up-outline', desc: 'E se eu subir meu preço?' },
   { key: 'goal', label: 'Meta de renda', icon: 'trophy-outline', desc: 'Quanto preciso atender?' },
+  { key: 'breakeven', label: 'Ponto de equilíbrio', icon: 'scale-outline', desc: 'Quanto preciso para cobrir meus custos?' },
 ];
 
 export default function SimulatorScreen() {
@@ -42,6 +43,9 @@ export default function SimulatorScreen() {
   );
   const [servicePrice, setServicePrice] = useState('');
 
+  // Modo 4 — ponto de equilíbrio
+  const [breakevenAvgProfit, setBreakevenAvgProfit] = useState('');
+
   function toNum(val: string) {
     return parseFloat(val.replace(',', '.')) || 0;
   }
@@ -55,9 +59,11 @@ export default function SimulatorScreen() {
       setCurrentPrice('');
       setNewPrice('');
       setMonthlyClients('');
-    } else {
+    } else if (mode === 'goal') {
       setIncomeGoal('');
       setServicePrice('');
+    } else {
+      setBreakevenAvgProfit('');
     }
   }
 
@@ -151,6 +157,32 @@ export default function SimulatorScreen() {
     );
   }
 
+  function renderBreakevenResult() {
+    const avgProfit = toNum(breakevenAvgProfit);
+    if (!avgProfit || !costConfig) return null;
+
+    const result = calcBreakeven(costConfig, avgProfit);
+    if (result.appointmentsPerMonth === 0) return null;
+
+    return (
+      <View style={styles.resultBox}>
+        <Text style={styles.resultTitle}>📊 Seus custos fixos: {formatCurrency(result.totalFixedCosts)}/mês</Text>
+        <View style={styles.resultGrid}>
+          <ResultItem label="Atendimentos/mês" value={String(result.appointmentsPerMonth)} color={COLORS.primary} highlight />
+          <ResultItem label="Atendimentos/semana" value={String(result.appointmentsPerWeek)} color={COLORS.primaryLight} highlight />
+          <ResultItem label="Atendimentos/dia" value={String(result.appointmentsPerDay)} color={COLORS.success} highlight />
+          <ResultItem label="Lucro médio usado" value={formatCurrency(avgProfit)} color={COLORS.gold} />
+        </View>
+        <View style={styles.insightBox}>
+          <Text style={styles.insightText}>
+            💡 Você precisa de <Text style={styles.insightHighlight}>{result.appointmentsPerDay} atendimento{result.appointmentsPerDay > 1 ? 's' : ''} por dia</Text>
+            {' '}só para cobrir aluguel, luz, internet, equipamentos e DAS MEI. Tudo o que vier além disso é lucro de verdade.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -190,7 +222,13 @@ export default function SimulatorScreen() {
         <View style={styles.formCard}>
           <View style={styles.formHeader}>
             <Text style={styles.formTitle}>
-              {mode === 'appointments' ? 'E se eu atender mais clientes?' : mode === 'price' ? 'E se eu subir meu preço?' : 'Quanto preciso atender?'}
+              {mode === 'appointments'
+                ? 'E se eu atender mais clientes?'
+                : mode === 'price'
+                ? 'E se eu subir meu preço?'
+                : mode === 'goal'
+                ? 'Quanto preciso atender?'
+                : 'Quanto preciso para cobrir meus custos?'}
             </Text>
             <TouchableOpacity style={styles.clearBtn} onPress={handleClearCurrentMode}>
               <Ionicons name="refresh-outline" size={14} color={COLORS.gray500} />
@@ -221,6 +259,13 @@ export default function SimulatorScreen() {
               <Field label="Meta de renda mensal (R$)" value={incomeGoal} onChange={setIncomeGoal} placeholder="Ex: 3000,00" decimal />
               <Field label="Preço do serviço (R$)" value={servicePrice} onChange={setServicePrice} placeholder="Ex: 55,00" decimal />
               {renderGoalResult()}
+            </>
+          )}
+
+          {mode === 'breakeven' && (
+            <>
+              <Field label="Lucro médio por atendimento (R$)" value={breakevenAvgProfit} onChange={setBreakevenAvgProfit} placeholder="Ex: 45,00" decimal />
+              {renderBreakevenResult()}
             </>
           )}
         </View>

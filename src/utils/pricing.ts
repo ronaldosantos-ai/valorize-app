@@ -1,24 +1,53 @@
 import { CostConfig } from '../types';
 import { MEI_MONTHLY_LIMIT, MEI_ANNUAL_LIMIT } from '../constants';
 
-// ─── Calcula o custo fixo por hora trabalhada ──────────────
-export function calcHourlyCost(config: CostConfig): number {
-  const monthlyHours = config.work_days_per_month * config.work_hours_per_day;
-  if (monthlyHours === 0) return 0;
-
+// ─── Soma todos os custos fixos mensais (sem incluir pró-labore) ──
+export function calcTotalFixedCosts(config: CostConfig): number {
   const depreciation = config.equipment_value / config.equipment_lifespan_months;
   const extraCostsTotal = (config.extra_costs || []).reduce((sum, item) => sum + item.value, 0);
-  const totalFixed =
+  return (
     config.rent +
     config.electricity +
     config.internet +
     config.other_fixed +
     extraCostsTotal +
     depreciation +
-    config.das_mei_monthly +
-    config.desired_salary;
+    config.das_mei_monthly
+  );
+}
+
+// ─── Calcula o custo fixo por hora trabalhada ──────────────
+export function calcHourlyCost(config: CostConfig): number {
+  const monthlyHours = config.work_days_per_month * config.work_hours_per_day;
+  if (monthlyHours === 0) return 0;
+
+  const totalFixed = calcTotalFixedCosts(config) + config.desired_salary;
 
   return totalFixed / monthlyHours;
+}
+
+// ─── Ponto de equilíbrio: quantos atendimentos cobrem os custos fixos ──
+export function calcBreakeven(
+  config: CostConfig,
+  avgNetProfitPerAppointment: number
+): {
+  totalFixedCosts: number;
+  appointmentsPerMonth: number;
+  appointmentsPerWeek: number;
+  appointmentsPerDay: number;
+} {
+  const totalFixedCosts = calcTotalFixedCosts(config);
+  if (avgNetProfitPerAppointment <= 0) {
+    return { totalFixedCosts, appointmentsPerMonth: 0, appointmentsPerWeek: 0, appointmentsPerDay: 0 };
+  }
+  const appointmentsPerMonth = Math.ceil(totalFixedCosts / avgNetProfitPerAppointment);
+  const workDays = config.work_days_per_month || 22;
+  return {
+    totalFixedCosts,
+    appointmentsPerMonth,
+    appointmentsPerWeek: Math.ceil(appointmentsPerMonth / 4),
+    appointmentsPerDay: Math.ceil(appointmentsPerMonth / workDays),
+  };
 }
 
 // ─── Preço Mínimo de Sobrevivência ─────────────────────────
