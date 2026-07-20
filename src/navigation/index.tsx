@@ -19,6 +19,7 @@ import CostSettingsScreen from '../screens/settings/CostSettingsScreen';
 import AccountMenuScreen from '../screens/account/AccountMenuScreen';
 import PaymentHistoryScreen from '../screens/account/PaymentHistoryScreen';
 import UsageHistoryScreen from '../screens/account/UsageHistoryScreen';
+import SupportChatScreen from '../screens/support/SupportChatScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -28,6 +29,7 @@ export type RootStackParamList = {
   PaymentHistory: undefined;
   UsageHistory: { filter?: 'today' | 'month' } | undefined;
   Clients: undefined;
+  SupportChat: undefined;
 };
 
 export type TabParamList = {
@@ -132,6 +134,7 @@ export default function Navigation() {
             <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
             <Stack.Screen name="UsageHistory" component={UsageHistoryScreen} />
             <Stack.Screen name="Clients" component={ClientsScreen} />
+            <Stack.Screen name="SupportChat" component={SupportChatScreen} />
           </>
         )}
       </Stack.Navigator>

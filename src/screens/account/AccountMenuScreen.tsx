@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
@@ -29,10 +29,13 @@ export default function AccountMenuScreen() {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [saving, setSaving] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   async function loadData() {
     const stored = await AsyncStorage.getItem(AVATAR_KEY);
@@ -47,6 +50,14 @@ export default function AccountMenuScreen() {
         .eq('id', user.id)
         .single();
       if (profile?.name) setName(profile.name);
+
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('sender', 'admin')
+        .is('read_at', null);
+      setUnreadCount(count || 0);
     }
   }
 
@@ -149,6 +160,13 @@ export default function AccountMenuScreen() {
       desc: 'Assinatura e cobranças do app',
       onPress: () => navigation.navigate('PaymentHistory'),
     },
+    {
+      icon: 'chatbubbles-outline' as const,
+      title: 'Fale com a gente',
+      desc: unreadCount > 0 ? `Você tem ${unreadCount} resposta${unreadCount > 1 ? 's' : ''} nova${unreadCount > 1 ? 's' : ''}` : 'Dúvidas, sugestões ou problemas',
+      badge: unreadCount > 0 ? unreadCount : undefined,
+      onPress: () => navigation.navigate('SupportChat'),
+    },
   ];
 
   return (
@@ -196,6 +214,11 @@ export default function AccountMenuScreen() {
               <Text style={styles.menuTitle}>{item.title}</Text>
               <Text style={styles.menuDesc}>{item.desc}</Text>
             </View>
+            {item.badge ? (
+              <View style={styles.menuBadge}>
+                <Text style={styles.menuBadgeText}>{item.badge}</Text>
+              </View>
+            ) : null}
             <Ionicons name="chevron-forward" size={18} color={COLORS.gray300} />
           </TouchableOpacity>
         ))}
@@ -353,6 +376,17 @@ const styles = StyleSheet.create({
   menuText: { flex: 1 },
   menuTitle: { fontSize: FONT_SIZES.sm, fontWeight: '700', color: COLORS.gray700 },
   menuDesc: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 2 },
+  menuBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    marginRight: SPACING.xs,
+  },
+  menuBadgeText: { color: COLORS.white, fontSize: 11, fontWeight: '800' },
 
   logoutBtn: {
     flexDirection: 'row',
