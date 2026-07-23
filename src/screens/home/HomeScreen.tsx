@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES, MEI_ANNUAL_LIMIT } from '../../constants';
 import { getTodayTip } from '../../constants/tips';
 import { supabase } from '../../lib/supabase';
-import { formatCurrency, calcMeiProgress, calcSalaryProgress, calcBreakeven } from '../../utils/pricing';
+import { formatCurrency, calcMeiProgress, calcSalaryProgress, calcTotalFixedCosts } from '../../utils/pricing';
 import { useAppStore } from '../../store';
 import type { TabParamList } from '../../navigation';
 
@@ -178,9 +178,10 @@ export default function HomeScreen() {
   const workDays = costConfig?.work_days_per_month || 22;
   const dailyGoal = desiredSalary / workDays;
   const salaryProgress = calcSalaryProgress(monthProfit, desiredSalary);
-  const avgProfitPerAppointment = monthAppointments > 0 ? monthProfit / monthAppointments : 0;
-  const breakeven = costConfig ? calcBreakeven(costConfig, avgProfitPerAppointment) : null;
-  const breakevenReached = monthAppointments >= (breakeven?.appointmentsPerMonth || Infinity) && (breakeven?.appointmentsPerMonth || 0) > 0;
+  const totalFixedCosts = costConfig ? calcTotalFixedCosts(costConfig) : 0;
+  const breakevenReached = totalFixedCosts > 0 && monthProfit >= totalFixedCosts;
+  const breakevenPercent = totalFixedCosts > 0 ? Math.min((monthProfit / totalFixedCosts) * 100, 100) : 0;
+  const breakevenRemaining = Math.max(0, totalFixedCosts - monthProfit);
   const meiProgress = calcMeiProgress(yearRevenue);
   const todayTip = getTodayTip();
 
@@ -343,12 +344,12 @@ export default function HomeScreen() {
       </View>
 
       {/* Ponto de equilíbrio */}
-      {breakeven && breakeven.appointmentsPerMonth > 0 && (
+      {totalFixedCosts > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>⚖️ Ponto de equilíbrio</Text>
             <Text style={styles.sectionValue}>
-              {monthAppointments} / {breakeven.appointmentsPerMonth} atend.
+              {formatCurrency(monthProfit)} / {formatCurrency(totalFixedCosts)}
             </Text>
           </View>
           <View style={styles.progressBar}>
@@ -356,7 +357,7 @@ export default function HomeScreen() {
               style={[
                 styles.progressFill,
                 {
-                  width: `${Math.min((monthAppointments / breakeven.appointmentsPerMonth) * 100, 100)}%`,
+                  width: `${breakevenPercent}%`,
                   backgroundColor: breakevenReached ? COLORS.success : COLORS.gold,
                 },
               ]}
@@ -365,17 +366,7 @@ export default function HomeScreen() {
           <Text style={styles.progressLabel}>
             {breakevenReached
               ? '🎉 Custos fixos cobertos! A partir daqui é lucro puro.'
-              : `Faltam ${breakeven.appointmentsPerMonth - monthAppointments} atendimentos para cobrir seus custos fixos este mês`}
-          </Text>
-        </View>
-      )}
-      {costConfig && breakeven && breakeven.appointmentsPerMonth === 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>⚖️ Ponto de equilíbrio</Text>
-          </View>
-          <Text style={styles.progressLabel}>
-            Registre atendimentos este mês para ver quantos você precisa para cobrir seus custos fixos ({formatCurrency(breakeven.totalFixedCosts)}).
+              : `Faltam ${formatCurrency(breakevenRemaining)} de lucro para cobrir seus custos fixos este mês`}
           </Text>
         </View>
       )}

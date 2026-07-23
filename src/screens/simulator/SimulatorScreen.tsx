@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { useAppStore } from '../../store';
-import { formatCurrency, simulateScenario, calcBreakeven } from '../../utils/pricing';
+import { formatCurrency, simulateScenario, calcBreakevenByService } from '../../utils/pricing';
 
 type SimMode = 'appointments' | 'price' | 'goal' | 'breakeven';
 
@@ -43,8 +43,7 @@ export default function SimulatorScreen() {
   );
   const [servicePrice, setServicePrice] = useState('');
 
-  // Modo 4 — ponto de equilíbrio
-  const [breakevenAvgProfit, setBreakevenAvgProfit] = useState('');
+  // Modo 4 — ponto de equilíbrio (calculado por serviço, sem input manual)
 
   function toNum(val: string) {
     return parseFloat(val.replace(',', '.')) || 0;
@@ -62,8 +61,6 @@ export default function SimulatorScreen() {
     } else if (mode === 'goal') {
       setIncomeGoal('');
       setServicePrice('');
-    } else {
-      setBreakevenAvgProfit('');
     }
   }
 
@@ -158,25 +155,45 @@ export default function SimulatorScreen() {
   }
 
   function renderBreakevenResult() {
-    const avgProfit = toNum(breakevenAvgProfit);
-    if (!avgProfit || !costConfig) return null;
+    if (!costConfig) return null;
 
-    const result = calcBreakeven(costConfig, avgProfit);
-    if (result.appointmentsPerMonth === 0) return null;
+    const result = calcBreakevenByService(costConfig, services);
+
+    if (result.items.length === 0) {
+      return (
+        <View style={styles.resultBox}>
+          <Text style={styles.resultTitle}>📊 Seus custos fixos: {formatCurrency(result.totalFixedCosts)}/mês</Text>
+          <Text style={styles.breakevenSubtitle}>
+            Cadastre seus serviços na Calculadora de Preços para ver, com exatidão, quantos atendimentos de cada um cobrem seus custos fixos.
+          </Text>
+        </View>
+      );
+    }
 
     return (
       <View style={styles.resultBox}>
         <Text style={styles.resultTitle}>📊 Seus custos fixos: {formatCurrency(result.totalFixedCosts)}/mês</Text>
-        <View style={styles.resultGrid}>
-          <ResultItem label="Atendimentos/mês" value={String(result.appointmentsPerMonth)} color={COLORS.primary} highlight />
-          <ResultItem label="Atendimentos/semana" value={String(result.appointmentsPerWeek)} color={COLORS.primaryLight} highlight />
-          <ResultItem label="Atendimentos/dia" value={String(result.appointmentsPerDay)} color={COLORS.success} highlight />
-          <ResultItem label="Lucro médio usado" value={formatCurrency(avgProfit)} color={COLORS.gold} />
-        </View>
+        <Text style={styles.breakevenSubtitle}>
+          Cada serviço tem um lucro diferente — veja quanto precisa de CADA um, isoladamente, para cobrir seus custos:
+        </Text>
+        {result.items.map((item) => (
+          <View key={item.serviceId} style={styles.breakevenRow}>
+            <View style={styles.breakevenRowHeader}>
+              <Text style={styles.breakevenServiceName}>{item.serviceName}</Text>
+              <Text style={styles.breakevenServiceProfit}>{formatCurrency(item.netProfitPerAppointment)}/atend.</Text>
+            </View>
+            {item.appointmentsPerMonth > 0 ? (
+              <Text style={styles.breakevenServiceCount}>
+                <Text style={styles.insightHighlight}>{item.appointmentsPerMonth}</Text> por mês · {item.appointmentsPerWeek} por semana · {item.appointmentsPerDay} por dia
+              </Text>
+            ) : (
+              <Text style={styles.breakevenServiceWarning}>⚠️ Esse serviço não gera lucro suficiente para cobrir custos sozinho — revise o preço.</Text>
+            )}
+          </View>
+        ))}
         <View style={styles.insightBox}>
           <Text style={styles.insightText}>
-            💡 Você precisa de <Text style={styles.insightHighlight}>{result.appointmentsPerDay} atendimento{result.appointmentsPerDay > 1 ? 's' : ''} por dia</Text>
-            {' '}só para cobrir aluguel, luz, internet, equipamentos e DAS MEI. Tudo o que vier além disso é lucro de verdade.
+            💡 Na prática você atende uma mistura de serviços — esses números mostram o cenário de cada um isolado, pra você saber qual combinação te leva ao equilíbrio mais rápido.
           </Text>
         </View>
       </View>
@@ -262,12 +279,7 @@ export default function SimulatorScreen() {
             </>
           )}
 
-          {mode === 'breakeven' && (
-            <>
-              <Field label="Lucro médio por atendimento (R$)" value={breakevenAvgProfit} onChange={setBreakevenAvgProfit} placeholder="Ex: 45,00" decimal />
-              {renderBreakevenResult()}
-            </>
-          )}
+          {mode === 'breakeven' && renderBreakevenResult()}
         </View>
 
       </ScrollView>
@@ -391,6 +403,17 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   resultTitle: { fontSize: FONT_SIZES.sm, fontWeight: '700', color: COLORS.gray700, marginBottom: SPACING.md },
+  breakevenSubtitle: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginBottom: SPACING.md, lineHeight: 18 },
+  breakevenRow: {
+    paddingVertical: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray100,
+  },
+  breakevenRowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  breakevenServiceName: { fontSize: FONT_SIZES.sm, fontWeight: '700', color: COLORS.primary, flexShrink: 1 },
+  breakevenServiceProfit: { fontSize: FONT_SIZES.xs, color: COLORS.gold, fontWeight: '700' },
+  breakevenServiceCount: { fontSize: FONT_SIZES.xs, color: COLORS.gray700, marginTop: 4 },
+  breakevenServiceWarning: { fontSize: FONT_SIZES.xs, color: COLORS.danger, marginTop: 4 },
   resultGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   resultItem: {
     flex: 1,

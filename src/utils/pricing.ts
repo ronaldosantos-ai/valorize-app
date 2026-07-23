@@ -1,4 +1,4 @@
-import { CostConfig } from '../types';
+import { CostConfig, Service } from '../types';
 import { MEI_MONTHLY_LIMIT, MEI_ANNUAL_LIMIT } from '../constants';
 
 // ─── Soma todos os custos fixos mensais (sem incluir pró-labore) ──
@@ -26,7 +26,54 @@ export function calcHourlyCost(config: CostConfig): number {
   return totalFixed / monthlyHours;
 }
 
-// ─── Ponto de equilíbrio: quantos atendimentos cobrem os custos fixos ──
+// ─── Ponto de equilíbrio POR SERVIÇO (preciso, sem usar média) ──
+// Usa o lucro líquido real de cada serviço cadastrado (preço Ideal, recebido via Pix,
+// sem taxa) para dizer quantos atendimentos DAQUELE serviço específico cobririam
+// os custos fixos, caso a profissional fizesse só ele.
+export function calcBreakevenByService(
+  config: CostConfig,
+  services: Service[]
+): {
+  totalFixedCosts: number;
+  items: {
+    serviceId: string;
+    serviceName: string;
+    netProfitPerAppointment: number;
+    appointmentsPerMonth: number;
+    appointmentsPerWeek: number;
+    appointmentsPerDay: number;
+  }[];
+} {
+  const totalFixedCosts = calcTotalFixedCosts(config);
+  const workDays = config.work_days_per_month || 22;
+
+  const items = services
+    .filter((s) => s.is_active && !s.needs_review)
+    .map((s) => {
+      const netProfitPerAppointment = calcNetProfit(
+        s.perceived_price,
+        s.supply_cost,
+        config,
+        s.duration_minutes,
+        'pix'
+      );
+      const appointmentsPerMonth =
+        netProfitPerAppointment > 0 ? Math.ceil(totalFixedCosts / netProfitPerAppointment) : 0;
+      return {
+        serviceId: s.id,
+        serviceName: s.name,
+        netProfitPerAppointment,
+        appointmentsPerMonth,
+        appointmentsPerWeek: appointmentsPerMonth > 0 ? Math.ceil(appointmentsPerMonth / 4) : 0,
+        appointmentsPerDay: appointmentsPerMonth > 0 ? Math.ceil(appointmentsPerMonth / workDays) : 0,
+      };
+    })
+    .sort((a, b) => a.appointmentsPerMonth - b.appointmentsPerMonth || 0);
+
+  return { totalFixedCosts, items };
+}
+
+// ─── Ponto de equilíbrio (modo simples, com lucro médio informado manualmente) ──
 export function calcBreakeven(
   config: CostConfig,
   avgNetProfitPerAppointment: number
