@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View } from 'react-native';
 import { COLORS } from '../constants';
 import { supabase } from '../lib/supabase';
+import { registerForPushNotifications, scheduleDasMeiReminder } from '../lib/notifications';
+import * as Notifications from 'expo-notifications';
+
+export const navigationRef = createNavigationContainerRef();
 import { useLoadUserData } from '../hooks/useLoadUserData';
 
 import HomeScreen from '../screens/home/HomeScreen';
@@ -94,6 +98,10 @@ export default function Navigation() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setIsAuthenticated(Boolean(session?.user));
+        if (session?.user) {
+          registerForPushNotifications(session.user.id);
+          scheduleDasMeiReminder();
+        }
       } catch (err) {
         console.error('Erro ao verificar sessão:', err);
       } finally {
@@ -105,12 +113,26 @@ export default function Navigation() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(Boolean(session?.user));
+      if (session?.user) {
+        registerForPushNotifications(session.user.id);
+        scheduleDasMeiReminder();
+      }
     });
 
     return () => {
       clearTimeout(safetyTimer);
       authListener?.subscription?.unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.type === 'support_reply' && navigationRef.isReady()) {
+        navigationRef.navigate('SupportChat' as never);
+      }
+    });
+    return () => responseListener.remove();
   }, []);
 
   if (loading) {
@@ -122,7 +144,7 @@ export default function Navigation() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
