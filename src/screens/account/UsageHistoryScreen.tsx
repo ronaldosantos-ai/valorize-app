@@ -27,6 +27,7 @@ interface HistoryItem {
 }
 
 interface Section {
+  key: string;
   title: string;
   totalProfit: number;
   data: HistoryItem[];
@@ -50,6 +51,8 @@ export default function UsageHistoryScreen() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -92,6 +95,7 @@ export default function UsageHistoryScreen() {
         const [year, month] = key.split('-').map(Number);
         const total = items.reduce((sum, i) => sum + i.net_profit, 0);
         return {
+          key,
           title: `${MONTH_NAMES[month]} ${year}`,
           totalProfit: total,
           data: items,
@@ -99,6 +103,7 @@ export default function UsageHistoryScreen() {
       });
 
       setSections(sectionsList);
+      setSelectedKey((prev) => prev ?? sectionsList[0]?.key ?? null);
     } catch (err) {
       console.error('Erro ao carregar histórico:', err);
     } finally {
@@ -135,6 +140,9 @@ export default function UsageHistoryScreen() {
     );
   }
 
+  const selectedSection = sections.find((s) => s.key === selectedKey) || null;
+  const displaySections = filter ? sections : selectedSection ? [selectedSection] : [];
+
   function formatDate(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -164,6 +172,38 @@ export default function UsageHistoryScreen() {
         </View>
       </View>
 
+      {!filter && sections.length > 0 && (
+        <View style={styles.monthPickerWrapper}>
+          <TouchableOpacity style={styles.monthPickerBtn} onPress={() => setPickerOpen((v) => !v)}>
+            <Text style={styles.monthPickerLabel}>{selectedSection?.title || 'Selecione o mês'}</Text>
+            <View style={styles.monthPickerRight}>
+              <Text style={styles.monthPickerTotal}>{formatCurrency(selectedSection?.totalProfit || 0)}</Text>
+              <Ionicons name={pickerOpen ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.primary} />
+            </View>
+          </TouchableOpacity>
+
+          {pickerOpen && (
+            <View style={styles.monthPickerList}>
+              {sections.map((s) => (
+                <TouchableOpacity
+                  key={s.key}
+                  style={[styles.monthPickerItem, s.key === selectedKey && styles.monthPickerItemActive]}
+                  onPress={() => {
+                    setSelectedKey(s.key);
+                    setPickerOpen(false);
+                  }}
+                >
+                  <Text style={[styles.monthPickerItemLabel, s.key === selectedKey && styles.monthPickerItemLabelActive]}>
+                    {s.title}
+                  </Text>
+                  <Text style={styles.monthPickerItemTotal}>{formatCurrency(s.totalProfit)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
       {sections.length === 0 ? (
         <View style={styles.emptyBox}>
           <Text style={styles.emptyEmoji}>📋</Text>
@@ -174,16 +214,18 @@ export default function UsageHistoryScreen() {
         </View>
       ) : (
         <SectionList
-          sections={sections}
+          sections={displaySections}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
-          renderSectionHeader={({ section }) => (
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              <Text style={styles.sectionTotal}>{formatCurrency(section.totalProfit)}</Text>
-            </View>
-          )}
+          renderSectionHeader={({ section }) =>
+            filter ? (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionTotal}>{formatCurrency(section.totalProfit)}</Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => {
             const payment = PAYMENT_ICONS[item.payment_method];
             return (
@@ -245,6 +287,44 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 2 },
 
   list: { padding: SPACING.lg, paddingTop: SPACING.xs },
+
+  monthPickerWrapper: { paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm },
+  monthPickerBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+  },
+  monthPickerLabel: { fontSize: FONT_SIZES.sm, fontWeight: '700', color: COLORS.white, textTransform: 'capitalize' },
+  monthPickerRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  monthPickerTotal: { fontSize: FONT_SIZES.sm, fontWeight: '800', color: COLORS.gold },
+  monthPickerList: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    marginTop: SPACING.xs,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    overflow: 'hidden',
+  },
+  monthPickerItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray100,
+  },
+  monthPickerItemActive: { backgroundColor: COLORS.primary + '10' },
+  monthPickerItemLabel: { fontSize: FONT_SIZES.sm, color: COLORS.gray700, textTransform: 'capitalize' },
+  monthPickerItemLabelActive: { fontWeight: '800', color: COLORS.primary },
+  monthPickerItemTotal: { fontSize: FONT_SIZES.xs, fontWeight: '700', color: COLORS.gray500 },
 
   sectionHeader: {
     flexDirection: 'row',
