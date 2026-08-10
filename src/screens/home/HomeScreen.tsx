@@ -43,7 +43,25 @@ export default function HomeScreen() {
   const [yearRevenue, setYearRevenue] = useState(0);
   const [streakDays, setStreakDays] = useState(0);
   const [isPersonalBest, setIsPersonalBest] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Atualiza o contador do sino sempre que a Home ganha foco
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { count } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('sender', 'admin')
+          .is('read_at', null);
+        setUnreadCount(count || 0);
+      })();
+    }, [])
+  );
 
   async function loadData() {
     try {
@@ -226,20 +244,33 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>{greeting}, {userName || 'profissional'}! 👋</Text>
           <Text style={styles.date}>{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.avatarContainer}
-          onPress={() => navigation.getParent()?.navigate('AccountMenu' as never)}
-        >
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.avatarPhoto} />
-          ) : (
-            <Image
-              source={require('../../../assets/icon.png')}
-              style={styles.avatarLogo}
-              resizeMode="contain"
-            />
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={() => navigation.getParent()?.navigate('SupportChat' as never)}
+          >
+            <Ionicons name="notifications-outline" size={24} color={COLORS.primary} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={() => navigation.getParent()?.navigate('AccountMenu' as never)}
+          >
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarPhoto} />
+            ) : (
+              <Image
+                source={require('../../../assets/icon.png')}
+                style={styles.avatarLogo}
+                resizeMode="contain"
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Checklist de configuração inicial — destaque forte, logo no topo */}
@@ -456,6 +487,30 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: FONT_SIZES.lg, fontWeight: '800', color: COLORS.primary },
   date: { fontSize: FONT_SIZES.xs, color: COLORS.gray500, marginTop: 2, textTransform: 'capitalize' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  bellButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: COLORS.offWhite,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: COLORS.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.background,
+  },
+  bellBadgeText: { color: COLORS.white, fontSize: 9, fontWeight: '800' },
   avatarContainer: {
     width: 48,
     height: 48,
