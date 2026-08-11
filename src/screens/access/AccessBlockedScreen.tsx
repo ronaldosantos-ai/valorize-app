@@ -24,6 +24,7 @@ const MESSAGES: Record<AccessReason, { title: string; body: string }> = {
   active: { title: '', body: '' },
   trial: { title: '', body: '' },
   grace: { title: '', body: '' },
+  admin: { title: '', body: '' },
 };
 
 interface Props {

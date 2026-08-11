@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-export type AccessReason = 'active' | 'trial' | 'grace' | 'canceled' | 'past_due' | 'no_subscription';
+export type AccessReason = 'admin' | 'active' | 'trial' | 'grace' | 'canceled' | 'past_due' | 'no_subscription';
 
 export interface AccessResult {
   allowed: boolean;
@@ -15,7 +15,12 @@ const PAST_DUE_GRACE_DAYS = 3; // margem extra pra falha temporária de cartão
 export function computeAccess(userCreatedAt: string, profile: {
   subscription_status: string | null;
   subscription_updated_at: string | null;
+  is_admin?: boolean | null;
 } | null): AccessResult {
+  if (profile?.is_admin) {
+    return { allowed: true, reason: 'admin' };
+  }
+
   const status = profile?.subscription_status ?? null;
 
   if (status === 'active') {
@@ -53,7 +58,7 @@ export async function checkAccess(): Promise<AccessResult> {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('subscription_status, subscription_updated_at')
+      .select('subscription_status, subscription_updated_at, is_admin')
       .eq('id', user.id)
       .single();
 
