@@ -7,6 +7,8 @@ import { ActivityIndicator, View } from 'react-native';
 import { COLORS } from '../constants';
 import { supabase } from '../lib/supabase';
 import { registerForPushNotifications, scheduleDasMeiReminder } from '../lib/notifications';
+import { checkAccess, AccessResult } from '../lib/access';
+import AccessBlockedScreen from '../screens/access/AccessBlockedScreen';
 import * as Notifications from 'expo-notifications';
 
 export const navigationRef = createNavigationContainerRef();
@@ -88,6 +90,7 @@ function MainTabs() {
 export default function Navigation() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [access, setAccess] = useState<AccessResult | null>(null);
   useLoadUserData();
 
   useEffect(() => {
@@ -101,6 +104,7 @@ export default function Navigation() {
         if (session?.user) {
           registerForPushNotifications(session.user.id);
           scheduleDasMeiReminder();
+          checkAccess().then(setAccess);
         }
       } catch (err) {
         console.error('Erro ao verificar sessão:', err);
@@ -116,6 +120,9 @@ export default function Navigation() {
       if (session?.user) {
         registerForPushNotifications(session.user.id);
         scheduleDasMeiReminder();
+        checkAccess().then(setAccess);
+      } else {
+        setAccess(null);
       }
     });
 
@@ -135,7 +142,7 @@ export default function Navigation() {
     return () => responseListener.remove();
   }, []);
 
-  if (loading) {
+  if (loading || (isAuthenticated && access === null)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary }}>
         <ActivityIndicator color={COLORS.white} size="large" />
@@ -148,6 +155,10 @@ export default function Navigation() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
+        ) : access && !access.allowed ? (
+          <Stack.Screen name="Main">
+            {() => <AccessBlockedScreen reason={access.reason} onAccessGranted={() => setAccess({ allowed: true, reason: 'active' })} />}
+          </Stack.Screen>
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
