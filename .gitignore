@@ -13,3 +13,5 @@ web-build/
 .env.local
 .DS_Store
 *.pem
+ 
+supabase/.temp/ 
