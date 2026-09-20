@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -133,6 +134,7 @@ export default function Navigation() {
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return undefined;
     const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
       if (data?.type === 'support_reply' && navigationRef.isReady()) {

@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import * as Sharing from 'expo-sharing';
+import * as Sharing from '../../lib/sharing';
 import ViewShot from 'react-native-view-shot';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';

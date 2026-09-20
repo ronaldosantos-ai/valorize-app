@@ -396,12 +396,14 @@ export default function ClientsScreen() {
                     keyboardType="number-pad"
                     maxLength={10}
                   />
-                  <TouchableOpacity
+                  {Platform.OS !== 'web' && (
+<TouchableOpacity
                     style={styles.calendarBtn}
                     onPress={openDatePicker}
                   >
                     <Ionicons name="calendar-outline" size={22} color={COLORS.primary} />
                   </TouchableOpacity>
+)}
                 </View>
               </View>
 
