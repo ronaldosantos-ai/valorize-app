@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
+import InstallButton from '../../components/InstallButton';
 
 type Mode = 'login' | 'register';
 
@@ -35,7 +36,9 @@ export default function LoginScreen() {
   }
 
   async function handleSubmit() {
-    if (!email || !password) {
+    // Teclado de celular costuma colocar maiúscula e espaço no e-mail.
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
       Alert.alert('Atenção', 'Preencha e-mail e senha.');
       return;
     }
@@ -47,11 +50,11 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (error) throw error;
       } else {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
           options: { data: { name } },
         });
@@ -139,6 +142,7 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
@@ -190,6 +194,9 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Instalar app (só aparece na versão web) */}
+        <InstallButton />
 
         {/* Rodapé */}
         <Text style={styles.footer}>

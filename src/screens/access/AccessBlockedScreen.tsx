@@ -5,7 +5,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import { checkAccess, AccessReason } from '../../lib/access';
 
-const CHECKOUT_MENSAL = 'https://checkout.ticto.app/O8D1F8A03';
+const CHECKOUT_MENSAL = 'https://whop.com/checkout/plan_ww70ZYzsxhiuf';
 const CHECKOUT_ANUAL = 'https://checkout.ticto.app/O63185AF2';
 
 const MESSAGES: Record<AccessReason, { title: string; body: string }> = {

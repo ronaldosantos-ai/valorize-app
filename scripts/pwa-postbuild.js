@@ -95,7 +95,8 @@ async function main() {
       '<meta name="apple-mobile-web-app-status-bar-style" content="black">',
       '<meta name="apple-mobile-web-app-title" content="Valorize">',
       '<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">',
-      '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js")})}</script>'
+      '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js")})}</script>',
+      '<script>window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__pwaPrompt=e});</script>'
     ].join('\n');
     html = html.replace('</head>', tags + '\n</head>');
   }
