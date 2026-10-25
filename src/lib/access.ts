@@ -8,11 +8,10 @@ export interface AccessResult {
   trialDaysLeft?: number;
 }
 
-const TRIAL_DAYS = 7;
 const PAST_DUE_GRACE_DAYS = 3; // margem extra pra falha temporária de cartão
 
-// Decide se a usuária pode usar o app: assinatura ativa > teste grátis > carência de atraso > bloqueado
-export function computeAccess(userCreatedAt: string, profile: {
+// Decide se a usuária pode usar o app: admin > assinatura ativa > carência de atraso > bloqueado
+export function computeAccess(_userCreatedAt: string, profile: {
   subscription_status: string | null;
   subscription_updated_at: string | null;
   is_admin?: boolean | null;
@@ -27,12 +26,9 @@ export function computeAccess(userCreatedAt: string, profile: {
     return { allowed: true, reason: 'active' };
   }
 
-  const trialEnd = new Date(userCreatedAt).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  // Sem teste grátis dentro do app: o teste de 7 dias acontece no checkout (com cartão).
+  // Quem se cadastra sem ter assinado cai em 'no_subscription' e vê a tela de assinatura.
   const now = Date.now();
-  if (now < trialEnd) {
-    const trialDaysLeft = Math.max(1, Math.ceil((trialEnd - now) / (24 * 60 * 60 * 1000)));
-    return { allowed: true, reason: 'trial', trialDaysLeft };
-  }
 
   if (status === 'past_due') {
     const updatedAt = profile?.subscription_updated_at ? new Date(profile.subscription_updated_at).getTime() : 0;

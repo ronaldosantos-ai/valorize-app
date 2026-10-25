@@ -6,7 +6,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View } from 'react-native';
 import { COLORS } from '../constants';
-import { supabase } from '../lib/supabase';
+import { supabase, startedInRecovery } from '../lib/supabase';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import { registerForPushNotifications, scheduleDasMeiReminder } from '../lib/notifications';
 import { checkAccess, AccessResult } from '../lib/access';
 import AccessBlockedScreen from '../screens/access/AccessBlockedScreen';
@@ -92,6 +93,7 @@ export default function Navigation() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [access, setAccess] = useState<AccessResult | null>(null);
+  const [recovery, setRecovery] = useState(startedInRecovery);
   useLoadUserData();
 
   useEffect(() => {
@@ -116,7 +118,8 @@ export default function Navigation() {
     }
     checkSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
       setIsAuthenticated(Boolean(session?.user));
       if (session?.user) {
         registerForPushNotifications(session.user.id);
@@ -157,6 +160,10 @@ export default function Navigation() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
+        ) : recovery ? (
+          <Stack.Screen name="ResetPassword">
+            {() => <ResetPasswordScreen onDone={() => setRecovery(false)} />}
+          </Stack.Screen>
         ) : access && !access.allowed ? (
           <Stack.Screen name="Main">
             {() => <AccessBlockedScreen reason={access.reason} onAccessGranted={() => setAccess({ allowed: true, reason: 'active' })} />}

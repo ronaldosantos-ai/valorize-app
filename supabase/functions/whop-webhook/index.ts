@@ -7,7 +7,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // ───────────────────────── AJUSTE AQUI (alinhar com o ticto-webhook) ─────────────────────────
 const PLAN_MAP: Record<string, string> = {
   plan_xJiM0HL4kpJYc: "monthly",
+  plan_ww70ZYzsxhiuf: "monthly",
   plan_5z4UKJYI2lsgG: "annual",
+  plan_XdiY3TrkdgkU6: "annual",
 };
 
 // Valores gravados em profiles.subscription_status (use os mesmos que a Ticto grava)
@@ -110,18 +112,9 @@ const secret = Deno.env.get("WHOP_WEBHOOK_SECRET")?.trim();
   const rawBody = await req.text(); // corpo CRU: não parsear antes de verificar
   const valid = await verifySignature(rawBody, req.headers, secret);
   if (!valid) {
-  const ts = req.headers.get("webhook-timestamp");
-  console.error("invalid_signature", JSON.stringify({
-    hasId: !!req.headers.get("webhook-id"),
-    hasTs: !!ts,
-    ageSec: ts ? Math.round(Date.now() / 1000 - Number(ts)) : null,
-    sigHeaderStart: (req.headers.get("webhook-signature") ?? "").slice(0, 8),
-    secretLen: secret.length,
-    secretStart: secret.slice(0, 3),
-    headerNames: [...req.headers.keys()].filter((k) => k.startsWith("webhook") || k.startsWith("x-")),
-  }));
-  return json({ error: "invalid_signature" }, 401);
-}
+    console.error("invalid_signature");
+    return json({ error: "invalid_signature" }, 401);
+  }
 
   const event = JSON.parse(rawBody);
   const webhookId: string = req.headers.get("webhook-id")!;
@@ -192,6 +185,21 @@ const secret = Deno.env.get("WHOP_WEBHOOK_SECRET")?.trim();
   };
   if (planId && PLAN_MAP[planId]) update.subscription_plan = PLAN_MAP[planId];
 
+  // Guarda o e-mail de quem pagou, para valer também quando a conta no app for criada DEPOIS da compra.
+  const paid: Record<string, unknown> = {
+    email,
+    subscription_status: status,
+    payment_provider: "whop",
+    updated_at: new Date().toISOString(),
+  };
+  if (update.subscription_plan) paid.subscription_plan = update.subscription_plan;
+  const { error: paidErr } = await supabase.from("paid_emails").upsert(paid, { onConflict: "email" });
+  if (paidErr) {
+    console.error("paid_emails upsert failed", paidErr);
+    await setResult("error");
+    return json({ error: "paid_emails_failed" }, 500);
+  }
+
   const { data: rows, error: upErr } = await supabase
     .from("profiles")
     .update(update)
@@ -204,6 +212,6 @@ const secret = Deno.env.get("WHOP_WEBHOOK_SECRET")?.trim();
     return json({ error: "update_failed" }, 500);
   }
 
-  await setResult(rows && rows.length > 0 ? "updated" : "user_not_found");
+  await setResult(rows && rows.length > 0 ? "updated" : "stored_for_signup");
   return json({ ok: true, type, updated: rows?.length ?? 0 });
 });

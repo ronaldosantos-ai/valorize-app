@@ -6,12 +6,12 @@ import { supabase } from '../../lib/supabase';
 import { checkAccess, AccessReason } from '../../lib/access';
 
 const CHECKOUT_MENSAL = 'https://whop.com/checkout/plan_ww70ZYzsxhiuf';
-const CHECKOUT_ANUAL = 'https://checkout.ticto.app/O63185AF2';
+const CHECKOUT_ANUAL = 'https://whop.com/checkout/plan_XdiY3TrkdgkU6';
 
 const MESSAGES: Record<AccessReason, { title: string; body: string }> = {
   no_subscription: {
-    title: 'Seu teste grátis terminou',
-    body: 'Você aproveitou os 7 dias gratuitos do Valorize. Para continuar calculando seus preços e acompanhando seu lucro, escolha um plano abaixo.',
+    title: 'Falta só ativar seu acesso',
+    body: 'Para usar o Valorize, escolha um plano abaixo. Você começa com 7 dias grátis e só paga se decidir continuar. Use o mesmo e-mail do seu cadastro no app.',
   },
   canceled: {
     title: 'Sua assinatura foi cancelada',

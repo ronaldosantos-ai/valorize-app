@@ -35,6 +35,30 @@ export default function LoginScreen() {
     setShowPassword(false);
   }
 
+  async function handleForgotPassword() {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      Alert.alert('Atenção', 'Digite seu e-mail no campo acima e toque em "Esqueci minha senha" de novo.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: 'https://app.verosy.com.br',
+      });
+      if (error) throw error;
+      Alert.alert(
+        'Verifique seu e-mail',
+        'Se esse e-mail tiver cadastro, enviamos um link para você criar uma nova senha. Olhe também o spam.'
+      );
+    } catch (err: any) {
+      Alert.alert('Erro', err.message || 'Não foi possível enviar o e-mail. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSubmit() {
     // Teclado de celular costuma colocar maiúscula e espaço no e-mail.
     const cleanEmail = email.trim().toLowerCase();
@@ -189,7 +213,7 @@ export default function LoginScreen() {
 
           {/* Esqueci a senha */}
           {mode === 'login' && (
-            <TouchableOpacity style={styles.forgotBtn}>
+            <TouchableOpacity style={styles.forgotBtn} onPress={handleForgotPassword} disabled={loading}>
               <Text style={styles.forgotText}>Esqueci minha senha</Text>
             </TouchableOpacity>
           )}
