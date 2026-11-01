@@ -185,6 +185,24 @@ const secret = Deno.env.get("WHOP_WEBHOOK_SECRET")?.trim();
   };
   if (planId && PLAN_MAP[planId]) update.subscription_plan = PLAN_MAP[planId];
 
+  // Dados da assinatura na Whop (para a cliente poder cancelar pelo app).
+  // Eventos "membership.*" trazem o id em data.id; eventos "payment.*" trazem em data.membership.id.
+  const rawMembershipId = type.startsWith("membership.")
+    ? pick(data, ["id"])
+    : pick(data, ["membership.id", "membership_id"]);
+  if (rawMembershipId && rawMembershipId.startsWith("mem_")) {
+    update.whop_membership_id = rawMembershipId;
+  }
+  const manageUrl = pick(data, ["manage_url"]);
+  if (manageUrl) update.whop_manage_url = manageUrl;
+  if (type.startsWith("membership.")) {
+    if (typeof data.cancel_at_period_end === "boolean") {
+      update.cancel_at_period_end = data.cancel_at_period_end;
+    }
+    const renewalEnd = pick(data, ["renewal_period_end"]);
+    if (renewalEnd) update.access_until = renewalEnd;
+  }
+
   // Guarda o e-mail de quem pagou, para valer também quando a conta no app for criada DEPOIS da compra.
   const paid: Record<string, unknown> = {
     email,
@@ -192,7 +210,15 @@ const secret = Deno.env.get("WHOP_WEBHOOK_SECRET")?.trim();
     payment_provider: "whop",
     updated_at: new Date().toISOString(),
   };
-  if (update.subscription_plan) paid.subscription_plan = update.subscription_plan;
+  for (const key of [
+    "subscription_plan",
+    "whop_membership_id",
+    "whop_manage_url",
+    "cancel_at_period_end",
+    "access_until",
+  ]) {
+    if (update[key] !== undefined) paid[key] = update[key];
+  }
   const { error: paidErr } = await supabase.from("paid_emails").upsert(paid, { onConflict: "email" });
   if (paidErr) {
     console.error("paid_emails upsert failed", paidErr);
