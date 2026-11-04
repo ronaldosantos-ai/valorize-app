@@ -113,7 +113,7 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.logoText}>Valorize</Text>
+          <Text style={styles.logoText}>Brio</Text>
           <Text style={styles.tagline}>Saiba exatamente quanto cobrar{'\n'}para ter o lucro que você merece.</Text>
         </View>
 

@@ -50,7 +50,7 @@ function describeStatus(p: SubProfile | null): StatusInfo {
       return {
         icon: 'checkmark-circle-outline',
         title: 'Assinatura ativa',
-        desc: `${planName}. Seu acesso ao Valorize está liberado.`,
+        desc: `${planName}. Seu acesso ao Brio está liberado.`,
       };
     }
     case 'past_due':
@@ -76,7 +76,7 @@ function describeStatus(p: SubProfile | null): StatusInfo {
       return {
         icon: 'information-circle-outline',
         title: 'Sem assinatura ativa',
-        desc: 'Escolha um plano para liberar o acesso ao Valorize.',
+        desc: 'Escolha um plano para liberar o acesso ao Brio.',
       };
   }
 }

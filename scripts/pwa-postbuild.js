@@ -65,8 +65,8 @@ async function main() {
     .toFile(path.join(DIST, 'icons', 'apple-touch-icon.png'));
 
   const manifest = {
-    name: 'Valorize',
-    short_name: 'Valorize',
+    name: 'Brio',
+    short_name: 'Brio',
     description: 'Calcule o preço justo dos seus serviços e veja seu lucro em tempo real.',
     start_url: '/',
     scope: '/',
@@ -93,7 +93,7 @@ async function main() {
       '<meta name="mobile-web-app-capable" content="yes">',
       '<meta name="apple-mobile-web-app-capable" content="yes">',
       '<meta name="apple-mobile-web-app-status-bar-style" content="black">',
-      '<meta name="apple-mobile-web-app-title" content="Valorize">',
+      '<meta name="apple-mobile-web-app-title" content="Brio">',
       '<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">',
       '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js")})}</script>',
       '<script>window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__pwaPrompt=e});</script>'

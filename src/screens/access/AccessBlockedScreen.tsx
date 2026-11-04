@@ -11,11 +11,11 @@ const CHECKOUT_ANUAL = 'https://whop.com/checkout/plan_XdiY3TrkdgkU6';
 const MESSAGES: Record<AccessReason, { title: string; body: string }> = {
   no_subscription: {
     title: 'Falta só ativar seu acesso',
-    body: 'Para usar o Valorize, escolha um plano abaixo. Você começa com 7 dias grátis e só paga se decidir continuar. Use o mesmo e-mail do seu cadastro no app.',
+    body: 'Para usar o Brio, escolha um plano abaixo. Você começa com 7 dias grátis e só paga se decidir continuar. Use o mesmo e-mail do seu cadastro no app.',
   },
   canceled: {
     title: 'Sua assinatura foi cancelada',
-    body: 'O acesso ao Valorize foi suspenso. Se foi engano ou você quer voltar, é só assinar de novo — nada foi perdido.',
+    body: 'O acesso ao Brio foi suspenso. Se foi engano ou você quer voltar, é só assinar de novo — nada foi perdido.',
   },
   past_due: {
     title: 'Não conseguimos confirmar seu pagamento',

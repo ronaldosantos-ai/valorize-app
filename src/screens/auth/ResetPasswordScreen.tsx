@@ -54,7 +54,7 @@ export default function ResetPasswordScreen({ onDone }: Props) {
     <View style={styles.container}>
       <View style={styles.card}>
         <Text style={styles.title}>Criar nova senha</Text>
-        <Text style={styles.subtitle}>Escolha uma senha nova para entrar no Valorize.</Text>
+        <Text style={styles.subtitle}>Escolha uma senha nova para entrar no Brio.</Text>
 
         <Text style={styles.label}>Nova senha</Text>
         <TextInput
